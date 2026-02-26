@@ -456,23 +456,13 @@ async def delete_quest(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Delete a pending quest. Only manual quests can be deleted. System quests cannot be removed."""
+    """Delete / remove a quest. Any quest can be removed by the user."""
     quest = db.query(Quest).filter(
         Quest.id == quest_id,
         Quest.user_id == current_user.id,
     ).first()
     if not quest:
         raise HTTPException(status_code=404, detail="[ SYSTEM ] Quest not found in your dungeon registry.")
-    if not quest.is_manual:
-        raise HTTPException(
-            status_code=403,
-            detail="[ SYSTEM ] System-generated quests cannot be deleted. Only manual quests may be removed.",
-        )
-    if quest.status != QuestStatus.PENDING:
-        raise HTTPException(
-            status_code=400,
-            detail=f"[ SYSTEM ] Cannot erase an active or resolved dungeon. Status: {quest.status.value.upper()}",
-        )
     db.delete(quest)
     db.commit()
 

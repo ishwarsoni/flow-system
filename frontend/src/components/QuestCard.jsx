@@ -52,7 +52,7 @@ const QuestCard = memo(function QuestCard({
   const statusCfg = STATUS_CONFIG[quest.status] || STATUS_CONFIG.pending
 
   const isActive = quest.status === 'pending' || quest.status === 'in_progress'
-  const canDelete = quest.is_manual && quest.status === 'pending'
+  const canDelete = true
   const needsMetrics = quest.metrics_required && !quest.metrics_submitted && isActive
   const canComplete = isActive && (!quest.metrics_required || quest.metrics_submitted)
 
@@ -183,18 +183,18 @@ const QuestCard = memo(function QuestCard({
           )}
 
           {/* Action buttons */}
-          {isActive && (
-            <div className="qc-actions">
-              {canComplete && (
-                <button
-                  onClick={() => onComplete?.(quest.id)}
-                  disabled={isActionsDisabled}
-                  className="qc-action-btn qc-action-btn--complete"
-                  style={actionColor('#00ff88')}
-                >
-                  ✓ COMPLETE
-                </button>
-              )}
+          <div className="qc-actions">
+            {isActive && canComplete && (
+              <button
+                onClick={() => onComplete?.(quest.id)}
+                disabled={isActionsDisabled}
+                className="qc-action-btn qc-action-btn--complete"
+                style={actionColor('#00ff88')}
+              >
+                ✓ COMPLETE
+              </button>
+            )}
+            {isActive && (
               <button
                 onClick={() => onFail?.(quest.id)}
                 disabled={isActionsDisabled}
@@ -203,18 +203,18 @@ const QuestCard = memo(function QuestCard({
               >
                 ✗ FAIL
               </button>
-              {canDelete && (
-                <button
-                  onClick={() => onDelete?.(quest.id)}
-                  disabled={isActionsDisabled}
-                  className="qc-action-btn qc-action-btn--delete"
-                  style={actionColor('#ff2040')}
-                >
-                  🗑 DELETE
-                </button>
-              )}
-            </div>
-          )}
+            )}
+            {canDelete && (
+              <button
+                onClick={() => onDelete?.(quest.id)}
+                disabled={isActionsDisabled}
+                className="qc-action-btn qc-action-btn--delete"
+                style={actionColor('#475569')}
+              >
+                🗑 REMOVE
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

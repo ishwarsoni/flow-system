@@ -113,7 +113,7 @@ export default function QuestsPage() {
     setActionLoading(questId)
     try {
       await questsAPI.delete(questId)
-      setToast({ type: 'success', message: 'Manual quest deleted.' })
+      setToast({ type: 'success', message: 'Quest removed.' })
       loadQuests()
     } catch (err) {
       setToast({ type: 'error', message: err?.response?.data?.detail || 'Delete failed' })
