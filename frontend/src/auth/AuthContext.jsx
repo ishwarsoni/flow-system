@@ -55,8 +55,8 @@ export function AuthProvider({ children }) {
         const refreshToken = getRefreshToken()
         if (refreshToken) {
           try {
-            const { default: axios } = await import('axios')
-            const res = await axios.post('/api/auth/refresh', {
+            const { default: client } = await import('../api/client')
+            const res = await client.post('/auth/refresh', {
               refresh_token: refreshToken,
             })
             storeSession(res.data)
@@ -70,8 +70,8 @@ export function AuthProvider({ children }) {
           const legacyRefresh = localStorage.getItem('flow_refresh_token')
           if (legacyRefresh) {
             try {
-              const { default: axios } = await import('axios')
-              const res = await axios.post('/api/auth/refresh', {
+              const { default: client } = await import('../api/client')
+              const res = await client.post('/auth/refresh', {
                 refresh_token: legacyRefresh,
               })
               // Clear legacy storage
