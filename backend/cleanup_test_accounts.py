@@ -1,5 +1,5 @@
 """One-time cleanup: delete test accounts created during CORS debugging.
-Run during deploy only once, then remove this file.
+This runs during the build step. Safe to remove after first successful deploy.
 """
 import os
 import sys
