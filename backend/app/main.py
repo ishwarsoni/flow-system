@@ -1,11 +1,13 @@
 from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import logging
 import time
+import os
 
 from app.config import get_settings
 from app.core.exceptions import FLOWException
@@ -139,12 +141,19 @@ app.include_router(verification_router.router, prefix="/api", tags=["Verificatio
 app.include_router(coach_router.router, prefix="/api/coach", tags=["AI Coach"])
 
 
-@app.get("/")
-def root():
-    # Never leak version info in production
-    if settings.DEBUG:
-        return {"message": f"{settings.APP_NAME} backend running", "version": "1.0.0"}
-    return {"status": "ok"}
+# ── Frontend SPA Serving ───────────────────────────────────────────────────
+# In production, serve the built React frontend from ../frontend/dist
+# This lets everything run on a single domain (no CORS issues).
+from pathlib import Path as _Path
+_FRONTEND_DIR = str((_Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"))
+_FRONTEND_EXISTS = os.path.isdir(_FRONTEND_DIR)
+
+if _FRONTEND_EXISTS:
+    logger.info("Serving frontend from %s", _FRONTEND_DIR)
+    # Mount /assets (Vite build output) as static files
+    _assets_dir = os.path.join(_FRONTEND_DIR, "assets")
+    if os.path.isdir(_assets_dir):
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="frontend-assets")
 
 
 @app.get("/health")
@@ -175,6 +184,24 @@ def health_check():
     health["errors"] = error_tracker.get_stats()
 
     return health
+
+
+# ── SPA Catch-All: serve index.html for all non-API routes ────────────────
+# MUST be after all API routes so /api/* and /health are handled first.
+@app.get("/{full_path:path}")
+def serve_frontend(full_path: str):
+    """Serve frontend SPA. All non-API routes return index.html for client-side routing."""
+    if _FRONTEND_EXISTS:
+        # Try to serve the exact file first (favicon.ico, manifest.json, etc.)
+        file_path = os.path.join(_FRONTEND_DIR, full_path)
+        if full_path and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        # Otherwise serve index.html (React Router handles the route)
+        index_path = os.path.join(_FRONTEND_DIR, "index.html")
+        if os.path.isfile(index_path):
+            return FileResponse(index_path)
+    # Fallback for dev / no frontend build
+    return JSONResponse({"status": "ok", "detail": "FLOW API running. Frontend not built."})
 
 
 @app.on_event("startup")

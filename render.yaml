@@ -1,6 +1,6 @@
 # ── Render Blueprint ──────────────────────────────────────────────────────
 # Deploy with: https://render.com/deploy
-# This file tells Render how to build & run the FLOW backend.
+# Single service: backend (FastAPI) serves the built React frontend.
 
 databases:
   - name: flow-db
@@ -10,12 +10,11 @@ databases:
 
 services:
   - type: web
-    name: flow-backend
+    name: flow-rpg
     runtime: python
     plan: free
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: cd backend && gunicorn app.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
@@ -28,5 +27,7 @@ services:
         value: "False"
       - key: PYTHON_VERSION
         value: "3.11.6"
+      - key: NODE_VERSION
+        value: "18.19.0"
       - key: ALLOWED_ORIGINS
-        value: "https://your-frontend-domain.vercel.app"
+        value: "https://flow-rpg.onrender.com"
