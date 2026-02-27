@@ -12,10 +12,12 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     hunter_name = Column(String(20), nullable=False, default="Hunter")
     is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False, nullable=False)
     # Starting difficulty chosen at registration: beginner | normal | hard | extreme
     starting_difficulty = Column(String(20), nullable=False, default="normal")
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
     
     def __repr__(self):
-        return f"<User(id={self.id}, username={self.username}, email={self.email})>"
+        # SECURITY: exclude email from repr to prevent PII leaking into logs/tracebacks
+        return f"<User(id={self.id}, username={self.username})>"

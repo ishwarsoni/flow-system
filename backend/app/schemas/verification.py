@@ -14,7 +14,7 @@ class SessionStartRequest(BaseModel):
     device_id:          Optional[str]  = Field(None, max_length=128)
     user_agent:         Optional[str]  = Field(None, max_length=512)
 
-    model_config = {"json_schema_extra": {"example": {
+    model_config = {"extra": "forbid", "json_schema_extra": {"example": {
         "device_id": "abc123",
         "user_agent": "Mozilla/5.0...",
     }}}
@@ -26,6 +26,8 @@ class HeartbeatRequest(BaseModel):
     idle_delta_sec:     int  = Field(..., ge=0, le=60)
     tab_hidden_delta:   int  = Field(0,  ge=0, le=60)
     app_bg_delta:       int  = Field(0,  ge=0, le=60)
+
+    model_config = {"extra": "forbid"}
 
 
 class SessionResponse(BaseModel):
@@ -62,6 +64,8 @@ class OutputSubmitRequest(BaseModel):
     response_text:      Optional[str]  = Field(None, max_length=4000)
     time_to_write_sec:  Optional[int]  = Field(None, ge=0)
 
+    model_config = {"extra": "forbid"}
+
     @field_validator("content")
     @classmethod
     def content_not_empty(cls, v):
@@ -94,11 +98,14 @@ class QuestSubmitRequest(BaseModel):
     final_idle_sec:     Optional[int]  = Field(None, ge=0)
     self_rating:        Optional[int]  = Field(None, ge=1, le=5, description="Optional self-assessment 1–5")
 
+    model_config = {"extra": "forbid"}
+
 
 class QuestCompleteRequest(BaseModel):
     """POST /quests/{id}/complete — triggers verification + reward grant.
     Only valid after /submit passes."""
-    pass
+
+    model_config = {"extra": "forbid"}
 
 
 # ═══════════════════════════════════════════════════════════
@@ -114,6 +121,8 @@ class SpotCheckResponse(BaseModel):
     """POST /quests/{id}/spot-check"""
     session_id:     int
     response_text:  str = Field(..., min_length=10, max_length=2000)
+
+    model_config = {"extra": "forbid"}
 
 
 # ═══════════════════════════════════════════════════════════

@@ -190,6 +190,16 @@ class ProgressionService:
         # Check rank change
         rank_event = PlayerService.check_rank_update(stats, db)
 
+        # Audit rank changes
+        if rank_event:
+            try:
+                from app.services.audit_service import audit_log
+                event_type = "rank_promotion" if "UP" in str(rank_event) else "rank_demotion"
+                audit_log(db, user_id=user_id, event_type=event_type,
+                          metadata={"rank_event": rank_event, "level": stats.level, "rank": stats.rank.value})
+            except Exception:
+                pass
+
         # Recalculate HP/MP if stats changed
         if actual_deltas:
             PlayerService.recalculate_vitals(stats, db)
@@ -243,6 +253,11 @@ class ProgressionService:
             if not stats:
                 raise ProgressionException("Player not found")
 
+            # ── Abuse Detection ──────────────────────────────────────────────
+            from app.services.abuse_detection_service import AbuseDetectionService
+            abuse_result = AbuseDetectionService.analyze_completion(db, user_id, quest)
+            abuse_xp_multiplier = abuse_result.xp_multiplier
+
             # MP cost
             mp_cost = quest.mp_cost or ProgressionService._get_mp_cost(quest.difficulty, db)
             if not PlayerService.consume_mp(stats, mp_cost, db):
@@ -269,7 +284,7 @@ class ProgressionService:
                 fatigue_penalty = ProgressionService._cfg(db, "fatigue_xp_penalty_percent") / 100
                 fatigue_mult = 1.0 - fatigue_penalty
 
-            xp_earned = int(quest.base_xp_reward * diff_mult * rank_mult * streak_mult * fatigue_mult * getattr(quest, 'performance_multiplier', 1.0))
+            xp_earned = int(quest.base_xp_reward * diff_mult * rank_mult * streak_mult * fatigue_mult * getattr(quest, 'performance_multiplier', 1.0) * abuse_xp_multiplier)
 
             # Diminishing returns
             xp_earned = ProgressionService._apply_diminishing_returns(db, user_id, xp_earned)
@@ -454,6 +469,16 @@ class ProgressionService:
             # Update quest
             quest.status = QuestStatus.FAILED
             quest.failed_at = datetime.now(UTC)
+
+            # Audit extreme failures
+            if quest.difficulty in (Difficulty.HARD, Difficulty.EXTREME):
+                try:
+                    from app.services.audit_service import audit_log
+                    audit_log(db, user_id=user_id, event_type="extreme_fail",
+                              metadata={"quest_id": quest_id, "difficulty": quest.difficulty.value,
+                                        "xp_penalty": xp_penalty, "hp_damage": hp_damage})
+                except Exception:
+                    pass
 
             # Daily progress
             dp = ProgressionService._get_or_create_daily_progress(db, user_id)

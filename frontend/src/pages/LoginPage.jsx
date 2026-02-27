@@ -19,7 +19,13 @@ export default function LoginPage() {
       await login(email, password)
       navigate('/dashboard', { replace: true })
     } catch (err) {
-      setError(err.response?.data?.detail || 'Authentication failed.')
+      const detail = err.response?.data?.detail
+      if (Array.isArray(detail)) {
+        const msgs = detail.map(d => d.msg || d.message || JSON.stringify(d)).join('; ')
+        setError(msgs)
+      } else {
+        setError(typeof detail === 'string' ? detail : 'Authentication failed.')
+      }
       setLoading(false)
     }
   }
@@ -47,11 +53,11 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={s.form}>
+        <form onSubmit={handleSubmit} style={s.form} autoComplete="on">
           <div style={s.fieldGroup}>
             <label style={s.label}>HUNTER ID (EMAIL)</label>
             <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)}
+              type="email" name="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)}
               required placeholder="hunter@system.net" style={s.input}
             />
           </div>
@@ -60,7 +66,7 @@ export default function LoginPage() {
             <label style={s.label}>PASSPHRASE</label>
             <div style={s.pwWrap}>
               <input
-                type={showPw ? 'text' : 'password'} value={password}
+                type={showPw ? 'text' : 'password'} name="password" autoComplete="current-password" value={password}
                 onChange={e => setPassword(e.target.value)}
                 required placeholder="" style={{ ...s.input, paddingRight: 44 }}
               />

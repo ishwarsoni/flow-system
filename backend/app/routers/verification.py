@@ -25,7 +25,7 @@ from app.models.quest_output import QuestOutput, OutputType
 from app.models.player_trust import PlayerTrust
 from app.models.verification_log import VerificationLog
 from app.models.audit_flag import AuditFlag
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, get_admin_user
 from app.services.verification_engine import VerificationEngine
 from app.schemas.verification import (
     SessionStartRequest,
@@ -430,12 +430,12 @@ async def list_audit_flags(
     resolved:   bool | None = Query(None),
     skip:       int = Query(0, ge=0),
     limit:      int = Query(50, ge=1, le=200),
-    current_user: User  = Depends(get_current_user),
+    current_user: User  = Depends(get_admin_user),
     db: Session         = Depends(get_db),
 ):
     """
     Returns audit flags. Filter by player or resolved state.
-    In production, restrict this to admin/moderator role.
+    Restricted to admin/moderator users.
     """
     q = db.query(AuditFlag)
     if player_id is not None:

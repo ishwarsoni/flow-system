@@ -144,7 +144,7 @@ def generate_and_save_quests(
     except Exception as e:
         db.rollback()
         logger.exception("generate-and-save failed")
-        raise HTTPException(status_code=500, detail=f"Failed to save quests: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to save quests. Please try again.")
 
 
 @router.post(

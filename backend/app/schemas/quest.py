@@ -35,6 +35,7 @@ class GenerateQuestRequest(BaseModel):
     difficulty: str = Field(..., description="easy | intermediate | hard | extreme")
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
                 "domain": "mind",
@@ -81,6 +82,7 @@ class QuestCreateRequest(BaseModel):
     )
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
                 "title": "Study for 90 minutes",
@@ -100,6 +102,7 @@ class AnalyzeQuestRequest(BaseModel):
     estimated_minutes: Optional[int] = Field(None, ge=1, le=480)
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
                 "title": "do 100 pushups",
@@ -207,6 +210,7 @@ class MetricsSubmitRequest(BaseModel):
     )
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
                 "metrics": {
@@ -287,6 +291,7 @@ class AllocateStatsRequest(BaseModel):
     )
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
                 "allocations": {"strength": 2, "intelligence": 1}

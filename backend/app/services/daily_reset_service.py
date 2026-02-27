@@ -50,19 +50,25 @@ def apply_midnight_penalties(db: Session, user_id: int) -> list[dict]:
     Returns a list of auto-failed quest info dicts (for logging / notifications).
     """
     today_midnight = datetime.combine(date.today(), datetime.min.time())
-    # A quest expires 24 hours after it was created, but never before the
-    # midnight that ends the day it was created — giving every quest a full day.
+    # A quest expires 24 hours after it was created, or when its explicit
+    # expires_at timestamp has passed — whichever comes first.
     # SQLite stores naive datetimes, so strip tzinfo before comparing.
     now_naive = datetime.now(UTC).replace(tzinfo=None)
     cutoff_24h = now_naive - timedelta(hours=24)
 
-    # Find pending quests older than 24 hours
+    from sqlalchemy import or_
+
+    # Find pending OR in-progress quests that are past their 24h window
+    # or past their explicit expires_at deadline
     stale_quests = (
         db.query(Quest)
         .filter(
             Quest.user_id == user_id,
-            Quest.status == QuestStatus.PENDING,
-            Quest.created_at < cutoff_24h,
+            Quest.status.in_([QuestStatus.PENDING, QuestStatus.IN_PROGRESS]),
+            or_(
+                Quest.created_at < cutoff_24h,
+                Quest.expires_at <= now_naive,
+            ),
         )
         .all()
     )
@@ -147,3 +153,53 @@ def apply_midnight_penalties(db: Session, user_id: int) -> list[dict]:
         return []
 
     return auto_failed
+
+
+def cleanup_old_failed_quests(db: Session, user_id: int) -> int:
+    """Delete FAILED / EXPIRED / ABANDONED quests older than 24 hours.
+
+    Keeps the quest list clean — only active and recent quests remain.
+    XP history is preserved so the audit trail is never lost.
+
+    Returns the number of quests removed.
+    """
+    now_naive = datetime.now(UTC).replace(tzinfo=None)
+    cutoff = now_naive - timedelta(hours=24)
+
+    from sqlalchemy import or_
+
+    old_quests = (
+        db.query(Quest)
+        .filter(
+            Quest.user_id == user_id,
+            Quest.status.in_([
+                QuestStatus.FAILED,
+                QuestStatus.EXPIRED,
+                QuestStatus.ABANDONED,
+            ]),
+            or_(
+                Quest.failed_at < cutoff,
+                Quest.created_at < cutoff,
+            ),
+        )
+        .all()
+    )
+
+    if not old_quests:
+        return 0
+
+    count = len(old_quests)
+    for quest in old_quests:
+        db.delete(quest)
+
+    try:
+        db.commit()
+        logger.info(
+            f"Cleaned up {count} old failed/expired quests for user {user_id}"
+        )
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed quest cleanup failed for user {user_id}: {e}")
+        return 0
+
+    return count

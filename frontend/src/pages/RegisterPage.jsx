@@ -5,7 +5,7 @@ import { useAuth } from '../auth/useAuth'
 export default function RegisterPage() {
   const navigate = useNavigate()
   const { register } = useAuth()
-  const [form, setForm] = useState({ username: '', hunter_name: '', email: '', password: '', confirmPassword: '' })
+  const [form, setForm] = useState({ hunter_name: '', email: '', password: '', confirmPassword: '' })
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -15,11 +15,13 @@ export default function RegisterPage() {
   const checks = [
     { label: 'MIN 8 CHARACTERS', ok: form.password.length >= 8 },
     { label: 'CONTAINS UPPERCASE', ok: /[A-Z]/.test(form.password) },
+    { label: 'CONTAINS LOWERCASE', ok: /[a-z]/.test(form.password) },
     { label: 'CONTAINS DIGIT', ok: /\d/.test(form.password) },
+    { label: 'CONTAINS SPECIAL (!@#$...)', ok: /[!@#$%^&*()\-_=+\[\]{}|;:'",.<>?\/`~]/.test(form.password) },
     { label: 'PASSWORDS MATCH', ok: form.password.length > 0 && form.password === form.confirmPassword },
   ]
   const hunterNameOk = form.hunter_name.length >= 3 && form.hunter_name.length <= 20 && /^[a-zA-Z]+$/.test(form.hunter_name)
-  const allOk = checks.every(c => c.ok) && form.username.length >= 3 && form.email.includes('@') && hunterNameOk
+  const allOk = checks.every(c => c.ok) && form.email.includes('@') && hunterNameOk
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -27,11 +29,17 @@ export default function RegisterPage() {
     setError('')
     setLoading(true)
     try {
-      await register(form.username, form.email, form.password, form.hunter_name)
+      await register(form.email, form.password, form.hunter_name)
       navigate('/dashboard', { replace: true })
     } catch (err) {
       const detail = err.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : 'Registration failed.')
+      if (Array.isArray(detail)) {
+        // Pydantic 422 validation errors — extract readable messages
+        const msgs = detail.map(d => d.msg || d.message || JSON.stringify(d)).join('; ')
+        setError(msgs)
+      } else {
+        setError(typeof detail === 'string' ? detail : 'Registration failed.')
+      }
       setLoading(false)
     }
   }
@@ -53,32 +61,28 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={s.form}>
-          <div style={s.fieldGroup}>
-            <label style={s.label}>USERNAME</label>
-            <input type="text" value={form.username} onChange={update('username')} required placeholder="username123" style={s.input} minLength={3} />
-          </div>
+        <form onSubmit={handleSubmit} style={s.form} autoComplete="on">
           <div style={s.fieldGroup}>
             <label style={s.label}>HUNTER NAME</label>
-            <input type="text" value={form.hunter_name} onChange={update('hunter_name')} required placeholder="Jinwoo" style={s.input} minLength={3} maxLength={20} />
+            <input type="text" name="name" autoComplete="name" value={form.hunter_name} onChange={update('hunter_name')} required placeholder="Jinwoo" style={s.input} minLength={3} maxLength={20} />
             {form.hunter_name.length > 0 && !/^[a-zA-Z]+$/.test(form.hunter_name) && (
               <span style={{ fontSize: 10, color: '#ff2040', fontFamily: "'Orbitron',monospace", letterSpacing: 1 }}>LETTERS ONLY (A-Z)</span>
             )}
           </div>
           <div style={s.fieldGroup}>
             <label style={s.label}>HUNTER ID (EMAIL)</label>
-            <input type="email" value={form.email} onChange={update('email')} required placeholder="hunter@system.net" style={s.input} />
+            <input type="email" name="email" autoComplete="email" value={form.email} onChange={update('email')} required placeholder="hunter@system.net" style={s.input} />
           </div>
           <div style={s.fieldGroup}>
             <label style={s.label}>PASSPHRASE</label>
             <div style={s.pwWrap}>
-              <input type={showPw ? 'text' : 'password'} value={form.password} onChange={update('password')} required placeholder="" style={{ ...s.input, paddingRight: 44 }} />
+              <input type={showPw ? 'text' : 'password'} name="password" autoComplete="new-password" value={form.password} onChange={update('password')} required placeholder="" style={{ ...s.input, paddingRight: 44 }} />
               <button type="button" onClick={() => setShowPw(!showPw)} style={s.pwToggle}>{showPw ? '' : ''}</button>
             </div>
           </div>
           <div style={s.fieldGroup}>
             <label style={s.label}>CONFIRM PASSPHRASE</label>
-            <input type="password" value={form.confirmPassword} onChange={update('confirmPassword')} required placeholder="" style={s.input} />
+            <input type="password" name="confirm-password" autoComplete="new-password" value={form.confirmPassword} onChange={update('confirmPassword')} required placeholder="" style={s.input} />
           </div>
 
           {form.password.length > 0 && (

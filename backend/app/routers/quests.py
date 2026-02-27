@@ -245,6 +245,9 @@ async def create_quest(
     expires_at = None
     if request.time_limit_minutes:
         expires_at = datetime.now(UTC) + timedelta(minutes=request.time_limit_minutes)
+    # Every quest auto-fails after 24 hours if not completed
+    if not expires_at:
+        expires_at = datetime.now(UTC) + timedelta(hours=24)
 
     # ── Enforce metrics_required for Hard/Extreme automatically ────────────────
     metrics_required = request.metrics_required
@@ -316,6 +319,10 @@ async def list_quests(
     """List quests with optional status and type filters."""
     # ── Midnight reset: auto-fail any stale pending quests ──
     apply_midnight_penalties(db, current_user.id)
+
+    # ── Cleanup: remove old failed quests (>24h) so the list stays clean ──
+    from app.services.daily_reset_service import cleanup_old_failed_quests
+    cleanup_old_failed_quests(db, current_user.id)
 
     # ── Lazy daily generation: if no active quests created today, auto-generate ──
     today_start = datetime.combine(date.today(), datetime.min.time())

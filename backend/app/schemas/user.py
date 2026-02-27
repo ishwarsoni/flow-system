@@ -6,9 +6,8 @@ import re
 
 class UserRegisterRequest(BaseModel):
     """User registration request schema"""
-    username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
-    password: str = Field(..., min_length=8, description="Must be at least 8 characters")
+    password: str = Field(..., min_length=8, max_length=128, description="Must be 8-128 characters")
     hunter_name: str = Field(default="Hunter", min_length=3, max_length=20, description="Hunter display name (3-20 letters only)")
     # Player picks their starting difficulty at sign-up.
     # hard  → starts at level 13 (C-Rank)
@@ -23,30 +22,29 @@ class UserRegisterRequest(BaseModel):
             raise ValueError("Hunter name must contain only letters (a-z, A-Z)")
         return v
     
-    @field_validator("username")
-    @classmethod
-    def validate_username(cls, v: str) -> str:
-        """Validate username: alphanumeric and underscores only"""
-        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
-            raise ValueError("Username can only contain letters, numbers, underscores, and hyphens")
-        return v
-    
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
-        """Validate password strength"""
+        """Enforce strong password policy."""
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
         if not any(c.isupper() for c in v):
             raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
         if not any(c.isdigit() for c in v):
             raise ValueError("Password must contain at least one digit")
+        if not any(c in "!@#$%^&*()-_=+[]{}|;:'\",.<>?/`~" for c in v):
+            raise ValueError("Password must contain at least one special character")
         return v
     
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
-                "username": "john_doe",
                 "email": "john@example.com",
-                "password": "SecurePass123",
+                "password": "SecurePass123!",
+                "hunter_name": "Jinwoo",
                 "starting_difficulty": "normal"
             }
         }
@@ -59,6 +57,7 @@ class UserLoginRequest(BaseModel):
     password: str
     
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
                 "email": "john@example.com",
@@ -83,8 +82,16 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     """Token response schema"""
     access_token: str
+    refresh_token: str = ""
     token_type: str = "bearer"
     user: UserResponse
+
+
+class RefreshRequest(BaseModel):
+    """Refresh token exchange request"""
+    refresh_token: str = Field(..., min_length=10)
+
+    model_config = {"extra": "forbid"}
 
 
 class TokenPayload(BaseModel):

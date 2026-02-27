@@ -13,6 +13,8 @@ class CoachRunRequest(BaseModel):
         pattern="^(daily|failure|manual)$",
     )
 
+    model_config = {"extra": "forbid"}
+
 
 class CoachQuestResponse(BaseModel):
     """A single quest created by the AI coach."""

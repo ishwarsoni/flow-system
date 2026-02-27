@@ -8,6 +8,7 @@ class GoalGenerateRequest(BaseModel):
     goal: str = Field(..., min_length=10, max_length=500, description="Describe your real-world goal in plain text.")
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
                 "goal": "I want to get fit and run a 5K in 4 weeks starting from zero"
@@ -50,6 +51,7 @@ class CustomXPRequest(BaseModel):
     category_hint: str = Field(default="")
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
                 "title": "Read 30 pages of a non-fiction book",

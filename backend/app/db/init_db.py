@@ -60,6 +60,10 @@ def create_all_tables(engine) -> None:
         from app.models.verification_log import VerificationLog
         from app.models.audit_flag import AuditFlag
 
+        # Security tables
+        from app.models.audit_log import AuditLog
+        from app.models.login_attempt import LoginAttempt, AccountLockout
+
         # Use the shared Base.metadata to create all tables at once
         from app.db.base import Base
 

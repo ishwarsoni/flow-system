@@ -6,10 +6,10 @@ export default function ProfileCard({ user, level, xpCurrent, xpToNext, currentS
     <div className="bg-white p-5 rounded-lg shadow">
       <div className="flex items-center gap-4">
         <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center text-xl font-bold">
-          {user?.username?.charAt(0)?.toUpperCase() ?? 'U'}
+          {user?.hunter_name?.charAt(0)?.toUpperCase() ?? 'H'}
         </div>
         <div>
-          <div className="text-lg font-semibold">{user?.username ?? user?.sub ?? 'User'}</div>
+          <div className="text-lg font-semibold">{user?.hunter_name ?? 'Hunter'}</div>
           <div className="text-sm text-gray-500">{user?.email ?? ''}</div>
         </div>
       </div>

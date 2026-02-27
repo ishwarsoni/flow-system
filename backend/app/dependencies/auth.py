@@ -34,7 +34,7 @@ def get_current_user(
         )
 
     try:
-        payload = decode_token(token)
+        payload = decode_token(token, expected_type="access")
 
         sub = payload.get("sub")
         if not sub:
@@ -73,3 +73,19 @@ def get_current_user(
         )
 
     return user
+
+
+def get_admin_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Require the current user to have admin privileges.
+
+    Use as a dependency on any admin-only endpoint:
+        current_user: User = Depends(get_admin_user)
+    """
+    if not getattr(current_user, "is_admin", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
+    return current_user

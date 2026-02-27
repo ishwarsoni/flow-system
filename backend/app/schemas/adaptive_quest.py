@@ -73,6 +73,8 @@ class ChooseTierRequest(BaseModel):
     # Set when the player picks one of their own custom quests instead
     custom_quest_id: Optional[int] = None
 
+    model_config = {"extra": "forbid"}
+
 
 class ChooseTierResponse(BaseModel):
     session_id: int
@@ -269,6 +271,7 @@ class CustomQuestCreate(BaseModel):
     )
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
                 "category": "body",
@@ -296,6 +299,8 @@ class CustomQuestUpdate(BaseModel):
     xp_override:         Optional[int]   = Field(None, ge=10, le=2000)
     metrics_required:    Optional[bool]  = None
     metrics_definition:  Optional[dict]  = None
+
+    model_config = {"extra": "forbid"}
 
 
 class CustomQuestResponse(BaseModel):
@@ -334,6 +339,7 @@ class MetricsSubmitRequest(BaseModel):
     )
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
                 "quest_id": 42,
@@ -346,6 +352,8 @@ class MetricsSubmitRequest(BaseModel):
 class DismissSystemQuestRequest(BaseModel):
     quest_template_id: int
     reason:            Optional[str] = Field(None, max_length=200)
+
+    model_config = {"extra": "forbid"}
 
 
 class DismissSystemQuestResponse(BaseModel):

@@ -51,10 +51,10 @@ export default function Layout() {
           <div className="flow-drawer-divider" />
           <div className="flow-drawer-hunter">
             <div className="flow-drawer-avatar">
-              {user?.username?.charAt(0).toUpperCase() || '?'}
+              {user?.hunter_name?.charAt(0).toUpperCase() || '?'}
             </div>
             <div className="flow-drawer-hunter-info">
-              <div className="flow-drawer-hunter-name">{user?.hunter_name || user?.username}</div>
+              <div className="flow-drawer-hunter-name">{user?.hunter_name || 'Hunter'}</div>
               <div className="flow-drawer-hunter-status">◉ ONLINE</div>
             </div>
           </div>
@@ -135,10 +135,10 @@ export default function Layout() {
           <div className="flow-sidebar-section-label">HUNTER</div>
           <div className="flow-sidebar-hunter-row">
             <div className="flow-sidebar-avatar">
-              {user?.username?.charAt(0).toUpperCase() || '?'}
+              {user?.hunter_name?.charAt(0).toUpperCase() || '?'}
             </div>
             <div className="flow-sidebar-hunter-info">
-              <div className="flow-sidebar-hunter-name">{user?.hunter_name || user?.username}</div>
+              <div className="flow-sidebar-hunter-name">{user?.hunter_name || 'Hunter'}</div>
               <div className="flow-sidebar-hunter-status">◉ ONLINE</div>
             </div>
             <button onClick={logout} className="flow-sidebar-logout" title="Logout">⏻</button>

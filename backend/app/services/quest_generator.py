@@ -562,6 +562,7 @@ class QuestGenerator:
             status=QuestStatus.PENDING,
             auto_generated=True,
             last_assigned_at=now,  # RULE 3: stamp for 48h cooldown
+            expires_at=now + timedelta(hours=24),  # Auto-fail after 24h
         )
 
         db.add(quest)

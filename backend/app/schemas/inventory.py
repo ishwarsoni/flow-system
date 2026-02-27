@@ -37,3 +37,5 @@ class PlayerInventoryResponse(PlayerInventoryBase):
 class UseItemRequest(BaseModel):
     item_id: int
     amount: int = 1
+
+    model_config = {"extra": "forbid"}

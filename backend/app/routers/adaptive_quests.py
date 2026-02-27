@@ -40,7 +40,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, get_admin_user
 from app.models.user import User
 from app.models.user_stats import UserStats
 from app.models.difficulty_profile import DifficultyProfile
@@ -492,7 +492,7 @@ def restore_system_quest(
 )
 def list_difficulty_profiles(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(get_admin_user),
 ) -> list[DifficultyProfileResponse]:
     rows = db.query(DifficultyProfile).order_by(
         DifficultyProfile.category, DifficultyProfile.phase
@@ -507,7 +507,7 @@ def list_difficulty_profiles(
 )
 def list_progression_tiers(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(get_admin_user),
 ) -> list[ProgressionTierResponse]:
     rows = db.query(ProgressionTier).order_by(ProgressionTier.level_min).all()
     return [ProgressionTierResponse.model_validate(r) for r in rows]
@@ -520,7 +520,7 @@ def list_progression_tiers(
 )
 def list_penalty_tiers(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(get_admin_user),
 ) -> list[PenaltyTierResponse]:
     rows = db.query(PenaltyTier).order_by(
         PenaltyTier.phase, PenaltyTier.difficulty_chosen
@@ -537,7 +537,7 @@ def list_quest_templates(
     category: Optional[str] = Query(None),
     tier: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(get_admin_user),
 ) -> list[QuestTemplateResponse]:
     q = db.query(QuestTemplate)
     if category:

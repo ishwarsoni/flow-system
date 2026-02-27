@@ -1,12 +1,17 @@
 import sqlite3
 import logging
+import time
 
 from fastapi import FastAPI, Request  # type: ignore
 from fastapi.responses import JSONResponse  # type: ignore
 from fastapi.middleware.cors import CORSMiddleware  # type: ignore
+from slowapi import Limiter, _rate_limit_exceeded_handler  # type: ignore
+from slowapi.util import get_remote_address  # type: ignore
+from slowapi.errors import RateLimitExceeded  # type: ignore
 
 from app.config import get_settings  # type: ignore
 from app.core.exceptions import FLOWException  # type: ignore
+from app.core.alerting import error_tracker, uptime_monitor  # type: ignore
 from app.routers import auth  # type: ignore
 from app.routers.quests import router as quests_router  # type: ignore
 from app.routers.player import router as player_router  # type: ignore
@@ -15,12 +20,23 @@ from app.routers.analytics import analytics_router  # type: ignore
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# ── Rate Limiter (per-IP) ─────────────────────────────────────────────────
+limiter = Limiter(key_func=get_remote_address, default_limits=[settings.GLOBAL_RATE_LIMIT])
+
 app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.DEBUG,
     version="2.0.0",
     description="FLOW RPG — Life Operating System",
+    # Disable interactive API docs in production
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
 )
+
+# Attach rate limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 # ─── Auto-migrate database on startup ───
@@ -194,33 +210,79 @@ def _auto_migrate():
 pass
 
 
-# CORS — permissive for development
+# ── CORS — use settings-defined origins (NO wildcard *) ────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
 )
 
 
-# Security headers
+# ── Security Headers + Request Size Guard ──────────────────────────────────
 @app.middleware("http")
-async def add_security_headers(request: Request, call_next):
+async def security_middleware(request: Request, call_next):
+    # Reject oversized request bodies
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > settings.MAX_REQUEST_BODY_BYTES:
+        return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+
+    start_time = time.time()
     response = await call_next(request)
+    duration = time.time() - start_time
+
+    # Log slow requests (>2s)
+    if duration > 2.0:
+        logger.warning(
+            "SLOW REQUEST | %s %s | %.2fs | ip=%s",
+            request.method, request.url.path, duration,
+            request.client.host if request.client else "unknown",
+        )
+
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000"
+    response.headers["X-XSS-Protection"] = "0"
+    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self';"
+    )
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+    if "server" in response.headers:
+        del response.headers["server"]
+
     return response
 
 
-# Global exception handler
+# Global exception handlers
 @app.exception_handler(FLOWException)
 async def flow_exception_handler(request: Request, exc: FLOWException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.message},
+    )
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    """Never leak stack traces to the client in production."""
+    if settings.DEBUG:
+        raise exc
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    error_tracker.record_5xx(request.url.path, 500, str(exc)[:200])
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
     )
 
 
@@ -246,9 +308,43 @@ app.include_router(coach_router.router, prefix="/api/coach", tags=["AI Coach"])
 
 @app.get("/")
 def root():
-    return {"message": f"{settings.APP_NAME} RPG backend running", "version": "2.0.0"}
+    if settings.DEBUG:
+        return {"message": f"{settings.APP_NAME} RPG backend running", "version": "2.0.0"}
+    return {"status": "ok"}
 
 
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    """Deep health check — verifies DB and Redis connectivity."""
+    result = {"status": "healthy"}
+
+    # Check database
+    try:
+        from app.db.database import SessionLocal
+        from sqlalchemy import text
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        result["db"] = "connected"
+    except Exception as e:
+        result["status"] = "degraded"
+        result["db"] = f"error: {str(e)[:100]}"
+
+    # Check Redis
+    try:
+        from app.core.token_blacklist import check_redis_health
+        result["redis"] = check_redis_health()
+    except Exception as e:
+        result["redis"] = {"status": "error", "detail": str(e)[:100]}
+
+    # 5xx error stats
+    result["errors"] = error_tracker.get_stats()
+
+    return result
+
+
+@app.on_event("startup")
+def start_monitoring():
+    """Start background uptime monitor on app startup."""
+    uptime_monitor.start()
+    logger.info("5xx alerting and uptime monitoring active")

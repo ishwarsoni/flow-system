@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, UTC
 
 from app.db.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, get_admin_user
 from app.models.user import User
 from app.services.progression_analytics_service import (
     ProgressionAnalyticsService,
@@ -87,10 +87,10 @@ def health_check():
 
 @analytics_router.get("/metrics")
 def get_metrics(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
-    """System-wide metrics."""
+    """System-wide metrics. Admin only."""
     try:
         from app.models.user_stats import UserStats
         from app.models.daily_progress import DailyProgress
@@ -115,5 +115,7 @@ admin_router = APIRouter()
 
 
 @admin_router.get("/health")
-def admin_health():
+def admin_health(
+    current_user: User = Depends(get_admin_user),
+):
     return {"status": "healthy", "timestamp": datetime.now(UTC).isoformat()}

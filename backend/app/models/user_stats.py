@@ -45,6 +45,7 @@ class UserStats(Base):
     longest_streak = Column(Integer, default=0)    # Best ever
     last_active_at = Column(DateTime, default=lambda: datetime.now(UTC))
     punishment_active = Column(Integer, default=0) # 0 = none, >0 = hours remaining
+    suspicion_score = Column(Float, default=0.0)   # 0-100, abuse detection score
 
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))

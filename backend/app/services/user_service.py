@@ -27,23 +27,35 @@ class UserService:
     def register_user(db: Session, user_data: UserRegisterRequest) -> User:
         """
         Register a new user and auto-create progression stats.
+        Username is auto-generated from email (user never picks it).
         Transactional: user and stats created together or neither.
         """
         try:
-            # Check if user already exists
-            existing_user = db.query(User).filter(
-                (User.email == user_data.email) | (User.username == user_data.username)
-            ).first()
-            
+            # Auto-generate username from email prefix
+            # e.g. "ishwar@gmail.com" → "ishwar", with numeric suffix if taken
+            import re as _re
+            email_prefix = user_data.email.split("@")[0]
+            # Keep only alphanumeric and underscores
+            base_username = _re.sub(r"[^a-zA-Z0-9_]", "", email_prefix)[:40] or "hunter"
+
+            # Ensure uniqueness
+            username = base_username
+            counter = 1
+            while db.query(User).filter(User.username == username).first():
+                username = f"{base_username}_{counter}"
+                counter += 1
+
+            # Check if email already exists
+            existing_user = db.query(User).filter(User.email == user_data.email).first()
             if existing_user:
                 raise UserAlreadyExistsException(
-                    "User with this email or username already exists"
+                    "An account with this email already exists"
                 )
             
             # Hash password and create user
             hashed_password: str = hash_password(user_data.password)
             new_user: User = User(
-                username=user_data.username,
+                username=username,
                 email=user_data.email,
                 hashed_password=hashed_password,
                 hunter_name=getattr(user_data, 'hunter_name', 'Hunter') or 'Hunter',
@@ -96,11 +108,14 @@ class UserService:
         except IntegrityError:
             db.rollback()
             raise UserAlreadyExistsException(
-                "User with this email or username already exists"
+                "An account with this email already exists"
             )
         except Exception as e:
             db.rollback()
-            raise Exception(f"User registration failed: {str(e)}")
+            # SECURITY: never expose internal exception details to caller
+            import logging
+            logging.getLogger(__name__).exception("User registration failed")
+            raise Exception("User registration failed. Please try again.")
     
     @staticmethod
     def get_user_by_email(db: Session, email: str) -> User | None:
