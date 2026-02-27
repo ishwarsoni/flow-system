@@ -61,7 +61,7 @@ class Settings(BaseSettings):
         "http://192.168.56.1:5173",
         "http://192.168.56.1:8000",
         "https://flow-system-1.onrender.com",
-        "https://flow-rpg.onrender.com",
+        "https://flow-wot6.onrender.com",
     ]
 
     # AI (optional — leave blank to use built-in rule-based engine)
