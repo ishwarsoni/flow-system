@@ -13,8 +13,14 @@ logger = logging.getLogger(__name__)
 
 
 # ── Password Hashing ───────────────────────────────────────────────────────
+# rounds=10 is the bcrypt default (2^10 = 1024 iterations) — secure and
+# fast enough for Render free-tier shared CPUs where rounds=12 can exceed
+# 30 seconds and cause timeout errors.
+BCRYPT_ROUNDS = 10
+
+
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=BCRYPT_ROUNDS)).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

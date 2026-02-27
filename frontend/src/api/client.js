@@ -10,7 +10,7 @@ const API_BASE_URL = _baseUrl
 const client = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000, // 15s — prevent hanging requests
+  timeout: 30000, // 30s — Render free-tier can be slow on first request
 })
 
 // ── In-memory token store (NOT localStorage) ──────────────────────────────

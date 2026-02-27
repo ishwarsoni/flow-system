@@ -1,0 +1,3 @@
+# Ensure LF line endings for files that Render/Netlify/CDN hosts parse
+public/_redirects text eol=lf
+public/_headers text eol=lf
