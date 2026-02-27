@@ -21,10 +21,15 @@ export default function LoginPage() {
     } catch (err) {
       if (!err.response) {
         // Network error — CORS blocked or server unreachable
-        setError('Cannot reach the server. Please check your connection and try again.')
+        setError('Cannot reach the server. Please wait a moment and try again.')
       } else {
+        const status = err.response?.status
         const detail = err.response?.data?.detail
-        if (Array.isArray(detail)) {
+        if (status === 405 || status === 502 || status === 503) {
+          setError('Server is starting up. Please wait 30 seconds and try again.')
+        } else if (status === 429) {
+          setError(typeof detail === 'string' ? detail : 'Too many attempts. Please wait a minute.')
+        } else if (Array.isArray(detail)) {
           const msgs = detail.map(d => d.msg || d.message || JSON.stringify(d)).join('; ')
           setError(msgs)
         } else {

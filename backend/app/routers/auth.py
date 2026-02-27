@@ -1,10 +1,9 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from app.config import get_settings
+from app.core.limiter import limiter
 from app.db.database import get_db
 from app.schemas.user import (
     UserRegisterRequest,
@@ -20,7 +19,6 @@ from app.dependencies.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
-limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter()
 
