@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal, engine
 from app.db.init_db import initialize_game_config, create_all_tables
+from app.db.seed import seed_all
 from app.core.monitoring import setup_logging, setup_sentry
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ def startup_event():
         db: Session = SessionLocal()
         try:
             initialize_game_config(db)
+            seed_all(db)
             logger.info("Startup initialization complete")
         finally:
             db.close()

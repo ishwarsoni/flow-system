@@ -104,10 +104,10 @@ SESSION_EXPIRY_HOURS = 12   # Player has 12 h to choose from a generated trio
 
 _DEFAULT_TEMPLATES: dict[str, dict[str, dict]] = {
     "mind": {
-        "easy":         {"title": "Read 15 pages + write 5-bullet summary",                "desc": "Passive input is banned. Read 15 pages, then write exactly 5 bullet points of what you retained. If you can't write them, you didn't read.", "unit": "tasks"},
-        "intermediate": {"title": "90-min deep work block + concept map output",           "desc": "90 min. One topic. Full focus. End product: a drawn concept map that someone else could understand.",                                       "unit": "tasks"},
-        "hard":         {"title": "2-hour deep work sprint + publish your notes",          "desc": "Two full hours, no exits. Produce notes clean enough to share. Then share them — email, upload, or show someone. Output is evidence.",       "unit": "tasks"},
-        "extreme":      {"title": "3-hour focused sprint — defined output delivered",      "desc": "Three hours. One task. Zero tolerance for interruption. You define the output target before you start. Deliver it. No extensions.",          "unit": "tasks"},
+        "easy":         {"title": "Study 45 min. Write a 3-sentence summary.",             "desc": "Study your current subject for 45 minutes without interruption. Phone in another room. When done, write a 3-sentence summary of what you covered. Log: start time, end time, topic studied, summary written.", "unit": "minutes"},
+        "intermediate": {"title": "90-min deep work block. Single task. Document output.", "desc": "Block off 90 minutes for one cognitively demanding task. No notifications, no task-switching, no phone. Log: task worked on, output produced, quality self-rating (1-10), total time.", "unit": "minutes"},
+        "hard":         {"title": "2-3h problem solving. Publish solution document.",      "desc": "Two to three hours of structured problem solving. Write a solution document with methodology, steps taken, and result. Log: problems attempted, solved, accuracy, time.", "unit": "minutes"},
+        "extreme":      {"title": "3-4h mastery sprint — defined output delivered.",       "desc": "Three to four hours. One task. Zero tolerance for interruption. You define the output target before you start. Deliver it. No extensions.", "unit": "minutes"},
     },
     "body": {
         "easy":         {"title": "30 squats + 20 pushups — log your reps",                "desc": "Full depth squats. Chest-to-floor pushups. No partial reps counted. Write down what you actually completed.",                               "unit": "tasks"},
