@@ -11,6 +11,9 @@ cd ..
 echo "=== Installing Backend Dependencies ==="
 cd backend
 pip install -r requirements.txt
+
+echo "=== Cleaning up test accounts ==="
+python cleanup_test_accounts.py || echo "Cleanup skipped (non-fatal)"
 cd ..
 
 echo "=== Build Complete ==="
