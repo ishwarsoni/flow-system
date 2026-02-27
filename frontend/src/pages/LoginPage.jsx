@@ -19,12 +19,17 @@ export default function LoginPage() {
       await login(email, password)
       navigate('/dashboard', { replace: true })
     } catch (err) {
-      const detail = err.response?.data?.detail
-      if (Array.isArray(detail)) {
-        const msgs = detail.map(d => d.msg || d.message || JSON.stringify(d)).join('; ')
-        setError(msgs)
+      if (!err.response) {
+        // Network error — CORS blocked or server unreachable
+        setError('Cannot reach the server. Please check your connection and try again.')
       } else {
-        setError(typeof detail === 'string' ? detail : 'Authentication failed.')
+        const detail = err.response?.data?.detail
+        if (Array.isArray(detail)) {
+          const msgs = detail.map(d => d.msg || d.message || JSON.stringify(d)).join('; ')
+          setError(msgs)
+        } else {
+          setError(typeof detail === 'string' ? detail : 'Authentication failed.')
+        }
       }
       setLoading(false)
     }

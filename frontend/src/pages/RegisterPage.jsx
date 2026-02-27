@@ -32,13 +32,18 @@ export default function RegisterPage() {
       await register(form.email, form.password, form.hunter_name)
       navigate('/dashboard', { replace: true })
     } catch (err) {
-      const detail = err.response?.data?.detail
-      if (Array.isArray(detail)) {
-        // Pydantic 422 validation errors — extract readable messages
-        const msgs = detail.map(d => d.msg || d.message || JSON.stringify(d)).join('; ')
-        setError(msgs)
+      if (!err.response) {
+        // Network error — CORS blocked or server unreachable
+        setError('Cannot reach the server. Please check your connection and try again.')
       } else {
-        setError(typeof detail === 'string' ? detail : 'Registration failed.')
+        const detail = err.response?.data?.detail
+        if (Array.isArray(detail)) {
+          // Pydantic 422 validation errors — extract readable messages
+          const msgs = detail.map(d => d.msg || d.message || JSON.stringify(d)).join('; ')
+          setError(msgs)
+        } else {
+          setError(typeof detail === 'string' ? detail : 'Registration failed.')
+        }
       }
       setLoading(false)
     }

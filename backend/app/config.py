@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     # Secret rotation (days)
     SECRET_ROTATION_DAYS: int = 90
 
-    # CORS
+    # CORS — accepts JSON array, comma-separated string, or single URL from env var
     ALLOWED_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
@@ -63,6 +63,46 @@ class Settings(BaseSettings):
         "https://flow-system-1.onrender.com",
         "https://flow-wot6.onrender.com",
     ]
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v):
+        """Handle ALLOWED_ORIGINS in any format:
+        - JSON array: '["https://a.com","https://b.com"]'
+        - Comma-separated: 'https://a.com,https://b.com'
+        - Single URL: 'https://a.com'
+        - Python list (already parsed)
+        Always includes the Render deployment URLs.
+        """
+        import json as _json
+
+        # Already a list
+        if isinstance(v, list):
+            origins = v
+        elif isinstance(v, str):
+            v = v.strip()
+            # Try JSON parse first
+            if v.startswith("["):
+                try:
+                    origins = _json.loads(v)
+                except Exception:
+                    origins = [s.strip() for s in v.split(",") if s.strip()]
+            else:
+                # Comma-separated or single URL
+                origins = [s.strip() for s in v.split(",") if s.strip()]
+        else:
+            origins = []
+
+        # Always ensure Render URLs are present
+        required = [
+            "https://flow-system-1.onrender.com",
+            "https://flow-wot6.onrender.com",
+        ]
+        for url in required:
+            if url not in origins:
+                origins.append(url)
+
+        return origins
 
     # AI (optional — leave blank to use built-in rule-based engine)
     OPENAI_API_KEY: str = ""
