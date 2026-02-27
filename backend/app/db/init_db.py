@@ -43,7 +43,7 @@ def create_all_tables(engine) -> None:
     Safe to run multiple times (idempotent).
     """
     try:
-        # Import all models so they register with the shared Base
+        # Import ALL models so they register with the shared Base
         from app.models.user import User
         from app.models.goal import Goal
         from app.models.quest import Quest
@@ -63,6 +63,28 @@ def create_all_tables(engine) -> None:
         # Security tables
         from app.models.audit_log import AuditLog
         from app.models.login_attempt import LoginAttempt, AccountLockout
+
+        # RPG / Inventory
+        from app.models.inventory import Item, PlayerInventory
+
+        # Domains & Difficulty
+        from app.models.domain import Domain
+        from app.models.difficulty_profile import DifficultyProfile
+
+        # Quest templates & adaptive sessions
+        from app.models.quest_template import QuestTemplate
+        from app.models.adaptive_quest_session import AdaptiveQuestSession
+
+        # Progression & Penalty tiers
+        from app.models.progression_tier import ProgressionTier
+        from app.models.penalty_tier import PenaltyTier
+
+        # AI Coach & Mindset
+        from app.models.ai_coach_log import AICoachLog
+        from app.models.mindset_score import MindsetScore
+
+        # User custom quests
+        from app.models.user_custom_quest import UserCustomQuest
 
         # Use the shared Base.metadata to create all tables at once
         from app.db.base import Base

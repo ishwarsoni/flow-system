@@ -71,10 +71,17 @@ class Settings(BaseSettings):
 
     @field_validator("DATABASE_URL")
     @classmethod
-    def resolve_sqlite_path(cls, v: str) -> str:
-        """Resolve relative SQLite paths relative to the backend directory,
-        not the process CWD. This makes `sqlite:///./flow.db` always point
-        to `<backend>/flow.db` regardless of where uvicorn is launched from."""
+    def resolve_database_url(cls, v: str) -> str:
+        """Fix database URL for compatibility.
+        
+        1. Render (and Heroku) provide postgres:// but SQLAlchemy 2.x requires postgresql://
+        2. Resolve relative SQLite paths relative to the backend directory.
+        """
+        # Fix Render/Heroku postgres:// → postgresql://
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql://", 1)
+
+        # Resolve relative SQLite paths
         if v.startswith("sqlite:///./") or v.startswith("sqlite:///flow"):
             relative = v.replace("sqlite:///./", "").replace("sqlite:///", "")
             absolute = _BACKEND_DIR / relative
@@ -94,20 +101,25 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_requirements(self) -> "Settings":
-        """Enforce mandatory config in production (DEBUG=False)."""
+        """Warn about missing config in production (DEBUG=False).
+        Non-fatal so the app can still start on platforms like Render
+        while the user provisions Redis / sets ALLOWED_ORIGINS.
+        """
+        import logging as _logging
+        _log = _logging.getLogger("app.config")
+
         if not self.DEBUG:
             if not self.REDIS_URL:
-                raise ValueError(
-                    "REDIS_URL is required in production (DEBUG=False). "
-                    "Token blacklist, session management, and rate limiting require Redis. "
-                    "Set REDIS_URL=redis://127.0.0.1:6379/0 in your .env file."
+                _log.warning(
+                    "⚠️  REDIS_URL is not set in production (DEBUG=False). "
+                    "Token blacklist will use in-memory store — NOT safe for multi-instance. "
+                    "Set REDIS_URL for production-grade token management."
                 )
-            # Block localhost CORS in production — these should be replaced
-            # with real domain(s) before going live.
+            # Warn about localhost CORS in production
             localhost_origins = [o for o in self.ALLOWED_ORIGINS if "localhost" in o or "127.0.0.1" in o or "192.168." in o]
             if localhost_origins and len(localhost_origins) == len(self.ALLOWED_ORIGINS):
-                raise ValueError(
-                    "ALLOWED_ORIGINS contains ONLY localhost/private-IP entries in production. "
+                _log.warning(
+                    "⚠️  ALLOWED_ORIGINS contains ONLY localhost/private-IP entries in production. "
                     "Set ALLOWED_ORIGINS to your real domain(s) in .env (e.g. https://yourdomain.com)."
                 )
         return self

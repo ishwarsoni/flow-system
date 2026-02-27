@@ -80,7 +80,7 @@ cp .env.example .env
 # Edit .env with your SECRET_KEY and DATABASE_URL
 
 # Run the server
-python -m uvicorn main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
 ### 3. Frontend
@@ -96,6 +96,49 @@ npm run dev
 ```
 
 Open **http://localhost:3000** in your browser.
+
+---
+
+## Deploy to Render (Free Tier)
+
+### 1. Create PostgreSQL Database
+- Go to [Render Dashboard](https://dashboard.render.com/) → **New** → **PostgreSQL**
+- Plan: **Free**
+- Note the **Internal Database URL** (starts with `postgresql://...`)
+
+### 2. Create Web Service
+- **New** → **Web Service** → Connect your GitHub repo
+- **Root Directory**: `backend`
+- **Runtime**: Python
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `gunicorn app.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120`
+
+### 3. Set Environment Variables
+In the Render web service settings, add these env vars:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Your PostgreSQL Internal Database URL from step 1 |
+| `SECRET_KEY` | Generate with: `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+| `DEBUG` | `False` |
+| `ALLOWED_ORIGINS` | `https://your-frontend.vercel.app` (comma-separated if multiple) |
+| `PYTHON_VERSION` | `3.11.6` |
+| `GROQ_API_KEY` | *(optional)* Your Groq API key for AI features |
+| `REDIS_URL` | *(optional)* Redis URL if you have one (e.g. Upstash) |
+
+### 4. Deploy Frontend (Vercel)
+```bash
+cd frontend
+npm run build
+# Deploy dist/ folder to Vercel
+```
+In Vercel, set: `VITE_API_BASE_URL` = `https://your-backend.onrender.com/api`
+
+### Or use the Blueprint
+Push code to GitHub and use `render.yaml` at the repo root for one-click deploy:
+```
+https://render.com/deploy?repo=<your-github-repo-url>
+```
 
 ---
 

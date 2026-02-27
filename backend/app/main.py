@@ -179,7 +179,11 @@ def health_check():
 
 @app.on_event("startup")
 def start_monitoring():
-    """Start background uptime monitor and quest expiry scheduler on app startup."""
+    """Initialize database, monitoring, and background tasks on app startup."""
+    # ── Create tables & seed game config (critical for fresh deployments) ──
+    from app.core.startup import startup_event
+    startup_event()
+
     uptime_monitor.start()
     logger.info("5xx alerting and uptime monitoring active")
 

@@ -5,7 +5,8 @@ On logout       → add jti to blacklist set.
 On refresh      → revoke old refresh-token jti.
 On every request→ reject if jti is blacklisted.
 
-PRODUCTION: Redis is MANDATORY. No memory fallback. Fail closed.
+PRODUCTION: Redis is strongly recommended but NOT mandatory.
+            Without Redis, in-memory fallback is used (single-instance only).
 DEV (DEBUG=True): In-memory dict fallback allowed.
 """
 
@@ -36,8 +37,8 @@ class RedisRequiredError(RuntimeError):
 def _get_redis():
     """Lazy-connect to Redis.
 
-    Production (DEBUG=False): Redis is mandatory. Raises RedisRequiredError.
-    Development (DEBUG=True): Returns None → in-memory fallback.
+    If REDIS_URL is set, connect to Redis.
+    Otherwise, fall back to in-memory store with a warning.
     """
     global _redis_client, _init_attempted, _is_production
 
@@ -50,13 +51,14 @@ def _get_redis():
 
     redis_url = getattr(settings, "REDIS_URL", "")
     if not redis_url:
-        if _is_production:
-            raise RedisRequiredError(
-                "REDIS_URL is required in production (DEBUG=False). "
-                "Set REDIS_URL in .env (e.g. redis://127.0.0.1:6379/0)."
-            )
         if not _init_attempted:
-            logger.info("REDIS_URL not set — using in-memory token store (dev only)")
+            if _is_production:
+                logger.warning(
+                    "⚠️  REDIS_URL not set in production — using in-memory token store. "
+                    "This is NOT safe for multi-instance deployments. Set REDIS_URL for production."
+                )
+            else:
+                logger.info("REDIS_URL not set — using in-memory token store (dev only)")
             _init_attempted = True
         return None
 
@@ -75,11 +77,12 @@ def _get_redis():
     except Exception as e:
         _redis_client = None
         if _is_production:
-            raise RedisRequiredError(
-                f"Redis connection failed in production: {e}. "
-                "Token blacklist requires Redis. Fix connection or set DEBUG=True for dev."
+            logger.error(
+                "Redis connection failed in production: %s — falling back to in-memory store. "
+                "Token blacklist is NOT distributed. Fix Redis connection for production safety.", e
             )
-        logger.warning("Redis unavailable (%s) — falling back to in-memory store (dev)", e)
+        else:
+            logger.warning("Redis unavailable (%s) — falling back to in-memory store (dev)", e)
         _init_attempted = True
         return None
 
@@ -94,9 +97,8 @@ def register_token(jti: str, token_type: str, expires_in_seconds: int) -> None:
         try:
             r.setex(key, expires_in_seconds, token_type)
         except Exception as e:
-            if _is_production:
-                raise RedisRequiredError(f"Redis register_token failed: {e}")
-            logger.error("Redis register_token failed: %s", e)
+            logger.error("Redis register_token failed: %s — using in-memory fallback", e)
+            _fallback_store[key] = time.time() + expires_in_seconds
     else:
         _fallback_store[key] = time.time() + expires_in_seconds
 
@@ -110,9 +112,8 @@ def blacklist_token(jti: str, expires_in_seconds: int) -> None:
             r.setex(key, expires_in_seconds, "revoked")
             logger.info("Token blacklisted: jti=%s", jti[:8])
         except Exception as e:
-            if _is_production:
-                raise RedisRequiredError(f"Redis blacklist_token failed: {e}")
-            logger.error("Redis blacklist_token failed: %s", e)
+            logger.error("Redis blacklist_token failed: %s — using in-memory fallback", e)
+            _fallback_store[key] = time.time() + expires_in_seconds
     else:
         _fallback_store[key] = time.time() + expires_in_seconds
 
