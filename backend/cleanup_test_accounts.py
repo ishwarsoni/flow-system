@@ -20,6 +20,7 @@ def cleanup():
     test_emails = [
         "corstest@test.com",
         "testuser123@test.com",
+        "ishwarsoni2917@gmail.com",  # registered during CORS debugging with wrong password
     ]
 
     with engine.connect() as conn:
