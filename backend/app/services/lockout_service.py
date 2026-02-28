@@ -38,7 +38,7 @@ class LockoutService:
         Returns:
             (is_locked, remaining_seconds)
         """
-        now = datetime.now(UTC)
+        now = datetime.now(UTC).replace(tzinfo=None)  # naive UTC — matches DB DateTime columns
         email_lower = email.lower()
 
         # Check all lockouts matching email OR ip
@@ -55,7 +55,10 @@ class LockoutService:
         ).order_by(AccountLockout.locked_until.desc()).first()
 
         if lockout:
-            remaining = int((lockout.locked_until - now).total_seconds())
+            lu = lockout.locked_until
+            if lu.tzinfo is not None:
+                lu = lu.replace(tzinfo=None)
+            remaining = int((lu - now).total_seconds())
             return True, max(remaining, 0)
         return False, 0
 
@@ -68,7 +71,7 @@ class LockoutService:
         - email alone (across all IPs)
         - ip alone (across all emails)
         """
-        now = datetime.now(UTC)
+        now = datetime.now(UTC).replace(tzinfo=None)  # naive UTC — matches DB DateTime columns
         email_lower = email.lower()
 
         attempt = LoginAttempt(
@@ -144,7 +147,7 @@ class LockoutService:
         reason: str,
     ) -> None:
         """Create or escalate a lockout with progressive delay."""
-        now = datetime.now(UTC)
+        now = datetime.now(UTC).replace(tzinfo=None)  # naive UTC — matches DB DateTime columns
         base_minutes = settings.LOCKOUT_DURATION_MINUTES
         max_minutes = getattr(settings, "LOCKOUT_MAX_DURATION_MINUTES", 1440)
 
@@ -171,7 +174,8 @@ class LockoutService:
 
         if existing:
             # Only escalate — never reduce an active lockout
-            if locked_until > (existing.locked_until or now):
+            existing_lu = existing.locked_until.replace(tzinfo=None) if existing.locked_until and existing.locked_until.tzinfo else existing.locked_until
+            if locked_until > (existing_lu or now):
                 existing.locked_until = locked_until
                 existing.reason = f"{reason} (progressive: {duration_minutes}min)"
         else:
@@ -243,12 +247,12 @@ class LockoutService:
         """Purge login attempts older than N days. Run periodically."""
         if days < 1:
             raise ValueError("cleanup_old_attempts: days must be >= 1 to prevent accidental purge")
-        cutoff = datetime.now(UTC) - timedelta(days=days)
+        cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
         deleted = db.query(LoginAttempt).filter(
             LoginAttempt.created_at < cutoff
         ).delete()
         db.query(AccountLockout).filter(
-            AccountLockout.locked_until < datetime.now(UTC)
+            AccountLockout.locked_until < datetime.now(UTC).replace(tzinfo=None)
         ).delete()
         db.commit()
         return deleted

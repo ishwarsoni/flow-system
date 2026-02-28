@@ -13,19 +13,32 @@ const client = axios.create({
   timeout: 30000, // 30s — Render free-tier can be slow on first request
 })
 
-// ── In-memory token store (NOT localStorage) ──────────────────────────────
+// ── Token store (in-memory + sessionStorage for page-refresh survival) ─────
 let _accessToken = null
 
 export function setAccessToken(token) {
   _accessToken = token
+  if (token) {
+    sessionStorage.setItem('flow_access_token', token)
+  } else {
+    sessionStorage.removeItem('flow_access_token')
+  }
 }
 
 export function getAccessToken() {
-  return _accessToken
+  if (_accessToken) return _accessToken
+  // Restore from sessionStorage on page refresh
+  const stored = sessionStorage.getItem('flow_access_token')
+  if (stored) {
+    _accessToken = stored
+    return stored
+  }
+  return null
 }
 
 export function clearTokens() {
   _accessToken = null
+  sessionStorage.removeItem('flow_access_token')
   sessionStorage.removeItem('flow_refresh_token')
   localStorage.removeItem('flow_token')
   localStorage.removeItem('flow_refresh_token')
