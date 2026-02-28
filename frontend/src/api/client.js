@@ -14,12 +14,6 @@ const client = axios.create({
 })
 
 // ── In-memory token store (NOT localStorage) ──────────────────────────────
-// Tokens are held in JS memory only. This means:
-// - XSS cannot read tokens from localStorage/sessionStorage
-// - Tokens survive page navigation but NOT full tab close/refresh
-// - On page refresh, the refresh token in sessionStorage re-authenticates
-//
-// Trade-off: user must re-login after closing the tab. This is the secure default.
 let _accessToken = null
 
 export function setAccessToken(token) {
@@ -33,19 +27,37 @@ export function getAccessToken() {
 export function clearTokens() {
   _accessToken = null
   sessionStorage.removeItem('flow_refresh_token')
-  // Clear any legacy localStorage tokens from before this migration
   localStorage.removeItem('flow_token')
   localStorage.removeItem('flow_refresh_token')
 }
 
 export function setRefreshToken(token) {
-  // sessionStorage is scoped to the tab and not accessible cross-tab.
-  // It's cleared when the tab closes, which is safer than localStorage.
   sessionStorage.setItem('flow_refresh_token', token)
 }
 
 export function getRefreshToken() {
   return sessionStorage.getItem('flow_refresh_token')
+}
+
+// ── Pluggable force-logout handler ────────────────────────────────────────
+// AuthContext registers a callback so the interceptor can trigger a React-aware
+// logout instead of doing window.location.href (which destroys React state).
+let _onForceLogout = null
+
+export function setForceLogoutHandler(fn) {
+  _onForceLogout = fn
+}
+
+function forceLogout() {
+  clearTokens()
+  localStorage.removeItem('flow_username')
+  localStorage.removeItem('flow_hunter_name')
+  if (_onForceLogout) {
+    _onForceLogout()
+  } else if (window.location.pathname !== '/login') {
+    // Fallback only if no React handler registered AND not already on /login
+    window.location.href = '/login'
+  }
 }
 
 // ── Attach access token to every request ──────────────────────────────────
@@ -59,15 +71,21 @@ client.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-// ── Flag to avoid multiple concurrent refresh attempts ────────────────────
+// ── Token refresh queue ───────────────────────────────────────────────────
 let isRefreshing = false
 let refreshSubscribers = []
 
 function subscribeTokenRefresh(cb) {
   refreshSubscribers.push(cb)
 }
+
 function onTokenRefreshed(newToken) {
-  refreshSubscribers.forEach(cb => cb(newToken))
+  refreshSubscribers.forEach(cb => cb.resolve(newToken))
+  refreshSubscribers = []
+}
+
+function onRefreshFailed(err) {
+  refreshSubscribers.forEach(cb => cb.reject(err))
   refreshSubscribers = []
 }
 
@@ -77,7 +95,6 @@ client.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
-    // If 401 and not the refresh/login route itself, try refresh
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
@@ -89,11 +106,14 @@ client.interceptors.response.use(
 
       if (refreshToken) {
         if (isRefreshing) {
-          // Queue this request until the refresh completes
-          return new Promise((resolve) => {
-            subscribeTokenRefresh((newToken) => {
-              originalRequest.headers.Authorization = `Bearer ${newToken}`
-              resolve(client(originalRequest))
+          // Queue this request — resolve or reject when refresh settles
+          return new Promise((resolve, reject) => {
+            subscribeTokenRefresh({
+              resolve: (newToken) => {
+                originalRequest.headers.Authorization = `Bearer ${newToken}`
+                resolve(client(originalRequest))
+              },
+              reject: (err) => reject(err),
             })
           })
         }
@@ -115,22 +135,16 @@ client.interceptors.response.use(
           onTokenRefreshed(newAccess)
           return client(originalRequest)
         } catch (refreshErr) {
-          // Refresh failed — full logout
-          clearTokens()
-          localStorage.removeItem('flow_username')
-          localStorage.removeItem('flow_hunter_name')
-          window.location.href = '/login'
+          onRefreshFailed(refreshErr)
+          forceLogout()
           return Promise.reject(refreshErr)
         } finally {
           isRefreshing = false
         }
       }
 
-      // No refresh token at all — logout
-      clearTokens()
-      localStorage.removeItem('flow_username')
-      localStorage.removeItem('flow_hunter_name')
-      window.location.href = '/login'
+      // No refresh token at all
+      forceLogout()
     }
 
     return Promise.reject(error)

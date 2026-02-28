@@ -22,37 +22,43 @@ class ErrorBoundary extends React.Component {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#f9fafb',
+          backgroundColor: '#0a0a0f',
           padding: '20px',
-          fontFamily: 'sans-serif',
+          fontFamily: "'Orbitron', monospace",
         }}>
           <div style={{
             textAlign: 'center',
             maxWidth: '500px',
-            backgroundColor: '#fff',
+            backgroundColor: 'rgba(4,12,30,0.9)',
             padding: '32px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            borderRadius: '4px',
+            border: '1px solid rgba(255,32,64,0.35)',
+            boxShadow: '0 0 24px rgba(255,32,64,0.15)',
           }}>
-            <h1 style={{ color: '#ef4444', fontSize: '24px', marginBottom: '12px' }}>
-              Something went wrong
+            <h1 style={{ color: '#ff2040', fontSize: '18px', marginBottom: '12px', letterSpacing: '2px' }}>
+              [ SYSTEM ERROR ]
             </h1>
-            <p style={{ color: '#666', marginBottom: '16px', fontSize: '14px' }}>
+            <p style={{ color: '#b8d8f0', marginBottom: '16px', fontSize: '13px', fontFamily: 'monospace' }}>
               {this.state.error?.message || 'An unexpected error occurred'}
             </p>
             <button
-              onClick={() => window.location.href = '/login'}
+              onClick={() => {
+                this.setState({ hasError: false, error: null })
+                window.location.href = '/'
+              }}
               style={{
                 padding: '10px 24px',
-                backgroundColor: '#3b82f6',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '6px',
+                backgroundColor: 'rgba(0,212,255,0.08)',
+                color: '#00d4ff',
+                border: '1px solid rgba(0,212,255,0.4)',
+                borderRadius: '2px',
                 cursor: 'pointer',
-                fontSize: '14px',
+                fontSize: '12px',
+                fontFamily: "'Orbitron', monospace",
+                letterSpacing: '2px',
               }}
             >
-              Go to Login
+              [ RELOAD ]
             </button>
           </div>
         </div>

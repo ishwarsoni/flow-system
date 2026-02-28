@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect } from 'react'
 import {
   setAccessToken, getAccessToken, clearTokens,
   setRefreshToken, getRefreshToken,
+  setForceLogoutHandler,
 } from '../api/client'
 
 export const AuthContext = createContext(null)
@@ -32,18 +33,25 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // ── Register force-logout handler for the 401 interceptor ─────────────
+  // This lets the Axios interceptor trigger a React-aware logout
+  // instead of doing window.location.href (which destroys state).
+  useEffect(() => {
+    setForceLogoutHandler(() => {
+      clearAllStorage()
+    })
+    return () => setForceLogoutHandler(null)
+  }, [])
+
   // ── Restore session ───────────────────────────────────────────────────
-  // Access token is in-memory (lost on refresh), but we attempt to silently
-  // re-authenticate via the refresh token stored in sessionStorage.
   useEffect(() => {
     async function restoreSession() {
       try {
-        // Check if we still have an in-memory access token (unlikely after refresh)
         const memToken = getAccessToken()
         if (memToken && !isTokenExpired(memToken)) {
           setToken(memToken)
           const decoded = safeDecodeJWT(memToken)
-        const savedHunterName = localStorage.getItem('flow_hunter_name')
+          const savedHunterName = localStorage.getItem('flow_hunter_name')
           if (decoded) {
             setUser({ ...decoded, hunter_name: savedHunterName || decoded?.sub || 'Hunter' })
           }
