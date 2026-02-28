@@ -62,6 +62,8 @@ class Settings(BaseSettings):
         "http://192.168.56.1:8000",
         "https://flow-system-1.onrender.com",
         "https://flow-crag.onrender.com",
+        "https://flow-rpg.tech",
+        "https://www.flow-rpg.tech",
     ]
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
@@ -97,6 +99,8 @@ class Settings(BaseSettings):
         required = [
             "https://flow-system-1.onrender.com",
             "https://flow-crag.onrender.com",
+            "https://flow-rpg.tech",
+            "https://www.flow-rpg.tech",
         ]
         for url in required:
             if url not in origins:

@@ -30,7 +30,7 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.6"
       - key: ALLOWED_ORIGINS
-        value: '["https://flow-system-1.onrender.com","https://flow-crag.onrender.com"]'
+        value: '["https://flow-system-1.onrender.com","https://flow-crag.onrender.com","https://flow-rpg.tech","https://www.flow-rpg.tech"]'
 
   # ── Frontend (React SPA) ────────────────────────────────────────────
   - type: web
