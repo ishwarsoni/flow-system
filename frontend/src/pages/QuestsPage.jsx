@@ -17,7 +17,6 @@ import { questsAPI, playerAPI } from '../api'
 const STATUS_FILTERS = [
   { key: null,          label: 'ALL' },
   { key: 'pending',     label: 'PENDING' },
-  { key: 'in_progress', label: 'ACTIVE' },
   { key: 'completed',   label: 'DONE' },
   { key: 'failed',      label: 'FAILED' },
 ]
@@ -136,7 +135,7 @@ export default function QuestsPage() {
     }
   }, [loadQuests])
 
-  // ── Count active quests ─────────────────────────────────────────────────────
+  // ── Count manual quests ─────────────────────────────────────────────────────
   const manualCount = quests.filter(q => q.is_manual).length
 
   return (
