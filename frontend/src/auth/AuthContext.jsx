@@ -129,13 +129,12 @@ export function AuthProvider({ children }) {
     return response.data
   }
 
-  // ── Register + auto-login ─────────────────────────────────────────────
+  // ── Register (returns tokens directly — no separate login needed) ─────
   const register = async (email, password, hunter_name) => {
     const { authAPI } = await import('../api')
-    await authAPI.register({ email, password, hunter_name: hunter_name || 'Hunter' })
-    const loginResponse = await authAPI.login({ email, password })
-    storeSession(loginResponse.data)
-    return loginResponse.data
+    const response = await authAPI.register({ email, password, hunter_name: hunter_name || 'Hunter' })
+    storeSession(response.data)
+    return response.data
   }
 
   // ── Logout ────────────────────────────────────────────────────────────

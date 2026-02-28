@@ -115,7 +115,8 @@ class UserService:
             # SECURITY: never expose internal exception details to caller
             import logging
             logging.getLogger(__name__).exception("User registration failed")
-            raise Exception("User registration failed. Please try again.")
+            from app.core.exceptions import FLOWException
+            raise FLOWException("User registration failed. Please try again.", status_code=500)
     
     @staticmethod
     def get_user_by_email(db: Session, email: str) -> User | None:

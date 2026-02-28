@@ -23,23 +23,37 @@ settings = get_settings()
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit(settings.REGISTER_RATE_LIMIT)
 def register(
     request: Request,
     user_data: UserRegisterRequest,
     db: Session = Depends(get_db),
-) -> UserResponse:
-    """Register a new user (rate-limited to prevent mass account creation)."""
+) -> TokenResponse:
+    """Register a new user and return tokens (rate-limited to prevent mass account creation).
+    
+    Returns access + refresh tokens directly so the frontend doesn't need
+    a separate login call after registration.
+    """
     try:
         user = UserService.register_user(db, user_data)
         logger.info("New user registered: %s (id=%s)", user.username, user.id)
 
-        # Audit log
+        # Issue tokens immediately — no separate login needed
+        access_token: str = create_access_token(user.id)
+        refresh_token: str = create_refresh_token(user.id)
+
+        # Audit log (commit so the entry is persisted)
         from app.services.audit_service import audit_log
         audit_log(db, user_id=user.id, event_type="register", request=request)
+        db.commit()
 
-        return user
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            user=UserResponse.model_validate(user),
+        )
     except FLOWException as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -90,6 +104,7 @@ def login(
     
     logger.info("User login: %s (id=%s)", user.username, user.id)
     audit_log(db, user_id=user.id, event_type="login_success", request=request)
+    db.commit()
     
     return TokenResponse(
         access_token=access_token,
