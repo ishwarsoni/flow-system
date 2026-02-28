@@ -103,7 +103,9 @@ class ProgressionService:
         min_time = ProgressionService._cfg(db, "min_time_between_tasks_seconds")
         if dp.last_task_completion_time is None:
             return True, ""
-        elapsed = (datetime.now(UTC) - dp.last_task_completion_time).total_seconds()
+        # Ensure timezone-aware comparison (SQLite stores naive datetimes)
+        _lct = dp.last_task_completion_time if dp.last_task_completion_time.tzinfo else dp.last_task_completion_time.replace(tzinfo=UTC)
+        elapsed = (datetime.now(UTC) - _lct).total_seconds()
         if elapsed < min_time:
             wait = int(min_time - elapsed)
             return False, f"[ SYSTEM ] Combat cooldown active. Dungeon re-entry locked for {wait}s. Recover and return."
@@ -242,8 +244,10 @@ class ProgressionService:
             if quest.status in (QuestStatus.FAILED, QuestStatus.EXPIRED, QuestStatus.ABANDONED):
                 raise ProgressionException(f"Cannot complete quest with status {quest.status.value}")
 
-            # Check expiry
-            if quest.expires_at and datetime.now(UTC) > quest.expires_at:
+            # Check expiry (handle both naive/aware datetimes for SQLite/PostgreSQL)
+            if quest.expires_at:
+                _exp = quest.expires_at if quest.expires_at.tzinfo else quest.expires_at.replace(tzinfo=UTC)
+            if quest.expires_at and datetime.now(UTC) > _exp:
                 quest.status = QuestStatus.EXPIRED
                 db.add(quest)
                 db.commit()
