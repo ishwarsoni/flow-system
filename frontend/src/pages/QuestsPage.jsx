@@ -137,7 +137,6 @@ export default function QuestsPage() {
   }, [loadQuests])
 
   // ── Count active quests ─────────────────────────────────────────────────────
-  const activeCount = quests.filter(q => q.status === 'pending' || q.status === 'in_progress').length
   const manualCount = quests.filter(q => q.is_manual).length
 
   return (
@@ -155,7 +154,7 @@ export default function QuestsPage() {
             <h1 className="qp-header-title">QUEST OPERATIONS</h1>
           </div>
           <div className="qp-header-actions">
-            <span className="qp-stats">{total} TOTAL · {activeCount} ACTIVE · {manualCount} MANUAL</span>
+            <span className="qp-stats">{total} TOTAL · {manualCount} MANUAL</span>
             <button
               onClick={() => setPanelMode(panelMode === 'generate' ? null : 'generate')}
               className="qp-header-btn"

@@ -9,13 +9,28 @@ export function PrivateRoute() {
     return (
       <div style={{
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        backgroundColor: '#f9fafb',
-        fontFamily: 'sans-serif',
+        backgroundColor: '#02050f',
+        gap: 12,
       }}>
-        <p style={{ color: '#6b7280', fontSize: '16px' }}>Loading...</p>
+        <div style={{
+          width: 28, height: 28,
+          border: '2px solid rgba(0,212,255,0.2)',
+          borderTop: '2px solid #00d4ff',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+        <span style={{
+          fontFamily: "'Orbitron', monospace",
+          fontSize: 10,
+          letterSpacing: 3,
+          color: 'rgba(0,212,255,0.4)',
+        }}>
+          RESTORING SESSION...
+        </span>
       </div>
     )
   }

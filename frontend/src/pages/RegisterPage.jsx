@@ -84,14 +84,14 @@ export default function RegisterPage() {
             <input type="email" name="email" autoComplete="email" value={form.email} onChange={update('email')} required placeholder="hunter@system.net" style={s.input} />
           </div>
           <div style={s.fieldGroup}>
-            <label style={s.label}>PASSPHRASE</label>
+            <label style={s.label}>PASSWORD</label>
             <div style={s.pwWrap}>
               <input type={showPw ? 'text' : 'password'} name="password" autoComplete="new-password" value={form.password} onChange={update('password')} required placeholder="" style={{ ...s.input, paddingRight: 44 }} />
               <button type="button" onClick={() => setShowPw(!showPw)} style={s.pwToggle}>{showPw ? '' : ''}</button>
             </div>
           </div>
           <div style={s.fieldGroup}>
-            <label style={s.label}>CONFIRM PASSPHRASE</label>
+            <label style={s.label}>CONFIRM PASSWORD</label>
             <input type="password" name="confirm-password" autoComplete="new-password" value={form.confirmPassword} onChange={update('confirmPassword')} required placeholder="" style={s.input} />
           </div>
 

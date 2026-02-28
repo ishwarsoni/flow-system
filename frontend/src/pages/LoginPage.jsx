@@ -73,7 +73,7 @@ export default function LoginPage() {
           </div>
 
           <div style={s.fieldGroup}>
-            <label style={s.label}>PASSPHRASE</label>
+            <label style={s.label}>PASSWORD</label>
             <div style={s.pwWrap}>
               <input
                 type={showPw ? 'text' : 'password'} name="password" autoComplete="current-password" value={password}
