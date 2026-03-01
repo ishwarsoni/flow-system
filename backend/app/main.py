@@ -87,13 +87,15 @@ async def security_middleware(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+    # Build connect-src from ALLOWED_ORIGINS so the frontend can reach the API
+    _connect_origins = " ".join(settings.ALLOWED_ORIGINS) if settings.ALLOWED_ORIGINS else ""
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self'; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data:; "
-        "connect-src 'self'; "
+        f"connect-src 'self' {_connect_origins}; "
         "frame-ancestors 'none'; "
         "base-uri 'self'; "
         "form-action 'self';"

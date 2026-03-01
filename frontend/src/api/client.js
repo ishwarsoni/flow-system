@@ -76,8 +76,9 @@ function forceLogout() {
 // ── Attach access token to every request ──────────────────────────────────
 client.interceptors.request.use(
   (config) => {
-    if (_accessToken) {
-      config.headers.Authorization = `Bearer ${_accessToken}`
+    const token = getAccessToken()
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
     return config
   },
