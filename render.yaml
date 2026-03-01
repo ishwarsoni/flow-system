@@ -1,6 +1,6 @@
 # ── Render Blueprint ──────────────────────────────────────────────────────
-# Backend: Web Service (flow-crag)
-# Frontend: Static Site (flow-system-1)
+# Single-service deployment: Backend builds + serves the React frontend.
+# This eliminates SPA routing issues (white screen on refresh).
 
 databases:
   - name: flow-db
@@ -9,14 +9,15 @@ databases:
     user: flow_user
 
 services:
-  # ── Backend (FastAPI) ────────────────────────────────────────────────
+  # ── Backend (FastAPI + Frontend SPA) ──────────────────────────────────
   - type: web
     name: flow
     runtime: python
     plan: free
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120
+    # No rootDir — use repo root so backend can access frontend/dist
+    buildCommand: |
+      cd frontend && npm install && npm run build && cd ../backend && pip install -r requirements.txt
+    startCommand: cd backend && gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
@@ -29,28 +30,33 @@ services:
         value: "False"
       - key: PYTHON_VERSION
         value: "3.11.6"
+      - key: NODE_VERSION
+        value: "20.11.0"
       - key: ALLOWED_ORIGINS
-        value: '["https://flow-system-1.onrender.com","https://flow-crag.onrender.com","https://flow-rpg.tech","https://www.flow-rpg.tech"]'
+        value: '["https://flow-crag.onrender.com","https://flow-rpg.tech","https://www.flow-rpg.tech"]'
 
-  # ── Frontend (React SPA) ────────────────────────────────────────────
-  - type: web
-    name: flow-system-1
-    runtime: static
-    plan: free
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    headers:
-      - path: /*
-        name: X-Frame-Options
-        value: DENY
-      - path: /*
-        name: Cache-Control
-        value: no-cache
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_BASE_URL
-        value: https://flow-crag.onrender.com/api
+  # ── (DISABLED) Separate Frontend Static Site ─────────────────────────
+  # Kept for reference. The backend now serves the frontend directly.
+  # To re-enable, uncomment below and add rootDir: backend to the backend service.
+  # - type: web
+  #   name: flow-system-1
+  #   runtime: static
+  #   plan: free
+  #   rootDir: frontend
+  #   buildCommand: npm install && npm run build
+  #   staticPublishPath: dist
+  #   headers:
+  #     - path: /*
+  #       name: X-Frame-Options
+  #       value: DENY
+  #     - path: /*
+  #       name: Cache-Control
+  #       value: no-cache
+  #   routes:
+  #     - type: rewrite
+  #       source: /*
+  #       destination: /index.html
+  #   envVars:
+  #     - key: VITE_API_BASE_URL
+  #       value: https://flow-crag.onrender.com/api
+
