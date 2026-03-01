@@ -171,6 +171,9 @@ def health_check():
         db.execute(text("SELECT 1"))
         db.close()
         health["db"] = "connected"
+        # Show DB type so we can diagnose data loss (sqlite = ephemeral on Render)
+        db_url = settings.DATABASE_URL
+        health["db_type"] = "postgresql" if "postgresql" in db_url else "sqlite" if "sqlite" in db_url else "other"
     except Exception as e:
         health["status"] = "degraded"
         health["db"] = f"error: {str(e)[:100]}"
