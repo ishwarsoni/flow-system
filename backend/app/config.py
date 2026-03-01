@@ -147,14 +147,30 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_requirements(self) -> "Settings":
-        """Warn about missing config in production (DEBUG=False).
-        Non-fatal so the app can still start on platforms like Render
-        while the user provisions Redis / sets ALLOWED_ORIGINS.
+        """Enforce production requirements (DEBUG=False).
+        SQLite in production is FATAL — Render's ephemeral filesystem
+        wipes the database on every service restart.
         """
         import logging as _logging
         _log = _logging.getLogger("app.config")
 
+        # Always log the database type for diagnostics
+        if "sqlite" in self.DATABASE_URL:
+            _log.info("Database: SQLite (ephemeral — data will NOT persist on Render)")
+        elif "postgresql" in self.DATABASE_URL:
+            _log.info("Database: PostgreSQL (persistent)")
+        else:
+            _log.info("Database: %s", self.DATABASE_URL.split("://")[0])
+
         if not self.DEBUG:
+            # FATAL: SQLite on Render = data loss on every restart
+            if "sqlite" in self.DATABASE_URL:
+                raise ValueError(
+                    "🚨 FATAL: SQLite cannot be used in production (DEBUG=False). "
+                    "Render's filesystem is ephemeral — all data is lost on restart. "
+                    "Set DATABASE_URL to a PostgreSQL connection string. "
+                    "On Render, link your PostgreSQL database in the Dashboard."
+                )
             if not self.REDIS_URL:
                 _log.warning(
                     "⚠️  REDIS_URL is not set in production (DEBUG=False). "
