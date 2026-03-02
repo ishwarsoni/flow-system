@@ -317,3 +317,68 @@ class TestDailyGeneration:
         db.commit()
 
         assert len(quests) <= 2
+
+
+# ── Quest cleanup tests ──────────────────────────────────────────────────────
+
+class TestQuestCleanup:
+    """Tests for the 24h auto-purge system that keeps the quest panel clean."""
+
+    def test_completed_quests_cleaned_after_24h(self, db, user, mind_easy_template):
+        """Completed quests older than 24h should be deleted."""
+        from app.services.daily_reset_service import cleanup_old_completed_quests
+
+        quest = QuestGenerator.generate_quest(db, user.id, domain="mind", difficulty="easy")
+        quest.status = QuestStatus.COMPLETED
+        quest.completed_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=25)
+        db.commit()
+
+        cleaned = cleanup_old_completed_quests(db, user.id)
+        assert cleaned == 1
+        # Quest should be gone
+        remaining = db.query(Quest).filter(Quest.user_id == user.id).count()
+        assert remaining == 0
+
+    def test_recent_completed_quests_preserved(self, db, user, mind_easy_template):
+        """Completed quests less than 24h old should NOT be deleted."""
+        from app.services.daily_reset_service import cleanup_old_completed_quests
+
+        quest = QuestGenerator.generate_quest(db, user.id, domain="mind", difficulty="easy")
+        quest.status = QuestStatus.COMPLETED
+        quest.completed_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=12)
+        db.commit()
+
+        cleaned = cleanup_old_completed_quests(db, user.id)
+        assert cleaned == 0
+        # Quest should still exist
+        remaining = db.query(Quest).filter(Quest.user_id == user.id).count()
+        assert remaining == 1
+
+    def test_failed_quests_cleaned_after_24h(self, db, user, mind_easy_template):
+        """Failed quests older than 24h should be deleted."""
+        from app.services.daily_reset_service import cleanup_old_failed_quests
+
+        quest = QuestGenerator.generate_quest(db, user.id, domain="mind", difficulty="easy")
+        quest.status = QuestStatus.FAILED
+        quest.failed_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=25)
+        quest.created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=30)
+        db.commit()
+
+        cleaned = cleanup_old_failed_quests(db, user.id)
+        assert cleaned == 1
+
+    def test_active_quests_never_cleaned(self, db, user, mind_easy_template):
+        """Pending/in_progress quests should never be deleted by cleanup."""
+        from app.services.daily_reset_service import (
+            cleanup_old_completed_quests, cleanup_old_failed_quests,
+        )
+
+        quest = QuestGenerator.generate_quest(db, user.id, domain="mind", difficulty="easy")
+        quest.created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=48)
+        db.commit()
+
+        cleanup_old_completed_quests(db, user.id)
+        cleanup_old_failed_quests(db, user.id)
+
+        remaining = db.query(Quest).filter(Quest.user_id == user.id).count()
+        assert remaining == 1  # Still there — cleanup does NOT touch active quests

@@ -203,3 +203,44 @@ def cleanup_old_failed_quests(db: Session, user_id: int) -> int:
         return 0
 
     return count
+
+
+def cleanup_old_completed_quests(db: Session, user_id: int) -> int:
+    """Delete COMPLETED quests older than 24 hours.
+
+    Keeps the quest panel clean — only recent completions remain visible.
+    XP history is preserved so the audit trail is never lost.
+
+    Returns the number of quests removed.
+    """
+    now_naive = datetime.now(UTC).replace(tzinfo=None)
+    cutoff = now_naive - timedelta(hours=24)
+
+    old_completed = (
+        db.query(Quest)
+        .filter(
+            Quest.user_id == user_id,
+            Quest.status == QuestStatus.COMPLETED,
+            Quest.completed_at < cutoff,
+        )
+        .all()
+    )
+
+    if not old_completed:
+        return 0
+
+    count = len(old_completed)
+    for quest in old_completed:
+        db.delete(quest)
+
+    try:
+        db.commit()
+        logger.info(
+            f"Cleaned up {count} old completed quests for user {user_id}"
+        )
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Completed quest cleanup failed for user {user_id}: {e}")
+        return 0
+
+    return count

@@ -15,23 +15,23 @@ import GenerateQuestPanel from '../components/GenerateQuestPanel'
 import { questsAPI, playerAPI } from '../api'
 
 const STATUS_FILTERS = [
-  { key: null,          label: 'ALL' },
-  { key: 'pending',     label: 'PENDING' },
-  { key: 'completed',   label: 'DONE' },
-  { key: 'failed',      label: 'FAILED' },
+  { key: null, label: 'ACTIVE' },     // Default — pending + in_progress only
+  { key: 'completed', label: 'DONE' },
+  { key: 'failed', label: 'FAILED' },
+  { key: 'expired', label: 'EXPIRED' },
 ]
 
 export default function QuestsPage() {
-  const [quests, setQuests]           = useState([])
-  const [total, setTotal]             = useState(0)
-  const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState(null)
+  const [quests, setQuests] = useState([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [statusFilter, setStatusFilter] = useState(null)
-  const [panelMode, setPanelMode]     = useState(null) // 'generate' | 'manual' | null
+  const [panelMode, setPanelMode] = useState(null) // 'generate' | 'manual' | null
   const [createError, setCreateError] = useState(null)
-  const [isCreating, setIsCreating]   = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const [actionLoading, setActionLoading] = useState(null) // quest id being acted on
-  const [toast, setToast]             = useState(null)
+  const [toast, setToast] = useState(null)
   const [allowedDifficulties, setAllowedDifficulties] = useState(['easy'])
 
   // ── Load profile for allowed difficulties ───────────────────────────────────
@@ -39,7 +39,7 @@ export default function QuestsPage() {
     playerAPI.getProfile().then(res => {
       const ad = res.data?.allowed_difficulties
       if (ad && ad.length) setAllowedDifficulties(ad)
-    }).catch(() => {})
+    }).catch(() => { })
   }, [])
 
   // ── Load quests ─────────────────────────────────────────────────────────────
@@ -238,7 +238,7 @@ export default function QuestsPage() {
       <div className="qp-inner">
         {loading && (
           <div className="qp-skeleton-list">
-            {[1,2,3].map(i => <div key={i} className="qp-skeleton-card skeleton" />)}
+            {[1, 2, 3].map(i => <div key={i} className="qp-skeleton-card skeleton" />)}
           </div>
         )}
 

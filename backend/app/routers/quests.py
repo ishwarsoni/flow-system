@@ -320,9 +320,10 @@ async def list_quests(
     # ── Midnight reset: auto-fail any stale pending quests ──
     apply_midnight_penalties(db, current_user.id)
 
-    # ── Cleanup: remove old failed quests (>24h) so the list stays clean ──
-    from app.services.daily_reset_service import cleanup_old_failed_quests
+    # ── Cleanup: remove old failed + completed quests (>24h) so the list stays clean ──
+    from app.services.daily_reset_service import cleanup_old_failed_quests, cleanup_old_completed_quests
     cleanup_old_failed_quests(db, current_user.id)
+    cleanup_old_completed_quests(db, current_user.id)
 
     # ── Lazy daily generation: if no active quests created today, auto-generate ──
     today_start = datetime.combine(date.today(), datetime.min.time())
@@ -355,6 +356,11 @@ async def list_quests(
             query = query.filter(Quest.status == s)
         except ValueError:
             pass
+    else:
+        # Default: show only active quests — keep the panel clean
+        query = query.filter(
+            Quest.status.in_([QuestStatus.PENDING, QuestStatus.IN_PROGRESS])
+        )
 
     if quest_type:
         try:

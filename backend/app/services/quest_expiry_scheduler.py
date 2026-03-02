@@ -150,6 +150,42 @@ def _cleanup_old_failed_quests_all_users(db: Session) -> int:
     return count
 
 
+def _cleanup_old_completed_quests_all_users(db: Session) -> int:
+    """Delete COMPLETED quests whose completion is older than 24 hours.
+
+    Runs for ALL users. XP history is preserved — only the quest rows are removed
+    so the quest list doesn't pile up with finished entries.
+    """
+    now_naive = datetime.now(UTC).replace(tzinfo=None)
+    cutoff = now_naive - timedelta(hours=24)
+
+    old_completed = (
+        db.query(Quest)
+        .filter(
+            Quest.status == QuestStatus.COMPLETED,
+            Quest.completed_at < cutoff,
+        )
+        .all()
+    )
+
+    if not old_completed:
+        return 0
+
+    count = len(old_completed)
+    for quest in old_completed:
+        db.delete(quest)
+
+    try:
+        db.commit()
+        logger.info("Cleaned up %d old completed quests across all users", count)
+    except Exception as e:
+        db.rollback()
+        logger.error("Completed quest cleanup commit failed: %s", e)
+        return 0
+
+    return count
+
+
 async def _scheduler_loop():
     """Async loop that runs the expiry check every CHECK_INTERVAL_SECONDS."""
     logger.info(
@@ -170,6 +206,11 @@ async def _scheduler_loop():
                 cleaned = _cleanup_old_failed_quests_all_users(db)
                 if cleaned:
                     logger.info("Scheduler tick: %d old failed quests cleaned up", cleaned)
+
+                # 3) Cleanup old completed quests (>24h after completion)
+                completed_cleaned = _cleanup_old_completed_quests_all_users(db)
+                if completed_cleaned:
+                    logger.info("Scheduler tick: %d old completed quests cleaned up", completed_cleaned)
             finally:
                 db.close()
         except Exception as e:
