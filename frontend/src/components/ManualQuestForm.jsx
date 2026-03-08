@@ -9,7 +9,8 @@
  *   - Duration within tier limits
  *   - No comfort tasks — reviewed by system
  */
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { questsAPI } from '../api'
 
 const DOMAINS = [
   { key: 'mind',     icon: '◈', color: '#00d4ff', label: 'MIND' },
@@ -52,6 +53,47 @@ export default function ManualQuestForm({ onSubmit, isSubmitting = false, error 
   const [duration, setDuration] = useState('')
   const [stat, setStat]         = useState('intelligence')
   const [metricsJson, setMetricsJson] = useState('')
+
+  // AI analysis state
+  const [aiAnalysis, setAiAnalysis] = useState(null)
+  const [aiLoading, setAiLoading]   = useState(false)
+  const analyzeTimer = useRef(null)
+
+  // ── AI auto-analyze on title/desc change (debounced 800ms) ──────────────────
+  useEffect(() => {
+    if (analyzeTimer.current) clearTimeout(analyzeTimer.current)
+    if (!title.trim() || title.trim().length < 5) {
+      setAiAnalysis(null)
+      return
+    }
+    analyzeTimer.current = setTimeout(async () => {
+      setAiLoading(true)
+      try {
+        const res = await questsAPI.analyze({
+          title: title.trim(),
+          description: desc.trim() || undefined,
+          estimated_minutes: duration ? parseInt(duration, 10) : undefined,
+        })
+        const data = res.data
+        setAiAnalysis(data)
+        // Auto-apply AI recommendation (user can override)
+        if (data.recommended_difficulty) {
+          const mapped = data.recommended_difficulty === 'medium' ? 'intermediate' : data.recommended_difficulty
+          const validTier = TIERS.find(t => t.key === mapped)
+          if (validTier) setTier(mapped)
+        }
+        if (data.recommended_primary_stat) {
+          const validStat = STAT_OPTIONS.find(s => s.key === data.recommended_primary_stat)
+          if (validStat) setStat(data.recommended_primary_stat)
+        }
+      } catch {
+        // Silently fail — AI analysis is optional
+      } finally {
+        setAiLoading(false)
+      }
+    }, 800)
+    return () => { if (analyzeTimer.current) clearTimeout(analyzeTimer.current) }
+  }, [title, desc, duration])
 
   const tierDef = TIERS.find(t => t.key === tier) || TIERS[0]
   const domainDef = DOMAINS.find(d => d.key === domain) || DOMAINS[0]
@@ -195,6 +237,56 @@ export default function ManualQuestForm({ onSubmit, isSubmitting = false, error 
         <div style={{ color: '#334155', fontSize: 9, fontFamily: 'monospace', marginTop: 3 }}>
           Vague titles like "be productive" or "work on stuff" will be rejected.
         </div>
+
+        {/* AI Analysis indicator */}
+        {aiLoading && (
+          <div style={{ color: '#00d4ff', fontSize: 9, fontFamily: 'monospace', marginTop: 6, letterSpacing: '0.1em' }}>
+            ◈ AI ANALYZING...
+          </div>
+        )}
+        {aiAnalysis && !aiLoading && (
+          <div style={{
+            marginTop: 8,
+            background: '#00d4ff08',
+            border: '1px solid #00d4ff22',
+            borderRadius: 4,
+            padding: '8px 12px',
+          }}>
+            <div style={{ color: '#00d4ff', fontSize: 9, fontFamily: 'monospace', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 6 }}>
+              ◈ AI JUDGMENT
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {aiAnalysis.recommended_difficulty && (
+                <span style={{
+                  ...infoBadge(TIERS.find(t => t.key === (aiAnalysis.recommended_difficulty === 'medium' ? 'intermediate' : aiAnalysis.recommended_difficulty))?.color || '#94a3b8'),
+                  fontSize: 9,
+                }}>
+                  {(aiAnalysis.recommended_difficulty === 'medium' ? 'INTERMEDIATE' : aiAnalysis.recommended_difficulty).toUpperCase()}
+                </span>
+              )}
+              {aiAnalysis.recommended_primary_stat && (
+                <span style={infoBadge('#ffd700')}>
+                  {aiAnalysis.recommended_primary_stat.toUpperCase()}
+                </span>
+              )}
+              {aiAnalysis.recommended_xp > 0 && (
+                <span style={infoBadge('#00ff88')}>
+                  +{aiAnalysis.recommended_xp} XP
+                </span>
+              )}
+              {aiAnalysis.category_detected && (
+                <span style={{ color: '#475569', fontSize: 8, fontFamily: 'monospace', letterSpacing: '0.08em' }}>
+                  [{aiAnalysis.category_detected.toUpperCase()}]
+                </span>
+              )}
+            </div>
+            {aiAnalysis.system_message && (
+              <div style={{ color: '#64748b', fontSize: 9, fontFamily: 'monospace', marginTop: 5, lineHeight: 1.4 }}>
+                {aiAnalysis.system_message}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Description */}

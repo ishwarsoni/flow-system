@@ -33,6 +33,8 @@ export default function QuestsPage() {
   const [actionLoading, setActionLoading] = useState(null) // quest id being acted on
   const [toast, setToast] = useState(null)
   const [allowedDifficulties, setAllowedDifficulties] = useState(['easy'])
+  const [defaultsCleared, setDefaultsCleared] = useState(false)
+  const [clearingDefaults, setClearingDefaults] = useState(false)
 
   // ── Load profile for allowed difficulties ───────────────────────────────────
   useEffect(() => {
@@ -43,12 +45,13 @@ export default function QuestsPage() {
   }, [])
 
   // ── Load quests ─────────────────────────────────────────────────────────────
-  const loadQuests = useCallback(async () => {
+  const loadQuests = useCallback(async (skipAutoGen = false) => {
     setLoading(true)
     setError(null)
     try {
       const params = {}
       if (statusFilter) params.status = statusFilter
+      if (skipAutoGen || defaultsCleared) params.skip_auto_generate = true
       const res = await questsAPI.list(params)
       setQuests(res.data.items)
       setTotal(res.data.total)
@@ -57,7 +60,7 @@ export default function QuestsPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter])
+  }, [statusFilter, defaultsCleared])
 
   useEffect(() => { loadQuests() }, [loadQuests])
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4000); return () => clearTimeout(t) }, [toast])
@@ -135,6 +138,23 @@ export default function QuestsPage() {
     }
   }, [loadQuests])
 
+  // ── Clear default quests ────────────────────────────────────────────────────
+  const handleClearDefaults = useCallback(async () => {
+    setClearingDefaults(true)
+    try {
+      const res = await questsAPI.clearDefaults()
+      const count = res.data?.deleted_count || 0
+      setDefaultsCleared(true)
+      setToast({ type: 'success', message: `${count} default quest(s) cleared. Create your own quests now.` })
+      setPanelMode('manual')
+      loadQuests(true)
+    } catch (err) {
+      setToast({ type: 'error', message: err?.response?.data?.detail || 'Failed to clear defaults' })
+    } finally {
+      setClearingDefaults(false)
+    }
+  }, [loadQuests])
+
   // ── Count manual quests ─────────────────────────────────────────────────────
   const manualCount = quests.filter(q => q.is_manual).length
 
@@ -176,8 +196,24 @@ export default function QuestsPage() {
             >
               {panelMode === 'manual' ? '✗ CLOSE' : '+ MANUAL'}
             </button>
+            {/* Clear all default/system quests */}
+            {quests.some(q => !q.is_manual) && (
+              <button
+                onClick={handleClearDefaults}
+                disabled={clearingDefaults}
+                className="qp-header-btn"
+                style={{
+                  background: clearingDefaults ? '#1e293b' : '#ff204018',
+                  borderColor: '#ff204044',
+                  color: clearingDefaults ? '#475569' : '#ff2040',
+                  cursor: clearingDefaults ? 'wait' : 'pointer',
+                }}
+              >
+                {clearingDefaults ? '...' : '✕ CLEAR DEFAULTS'}
+              </button>
+            )}
             <button
-              onClick={loadQuests}
+              onClick={() => loadQuests()}
               disabled={loading}
               className="qp-header-btn"
               style={{
@@ -262,8 +298,34 @@ export default function QuestsPage() {
             <div style={{ fontSize: 24, marginBottom: 12 }}>○</div>
             {statusFilter
               ? `No ${statusFilter.replace('_', ' ').toUpperCase()} quests found.`
-              : 'No quests in your registry. Generate one above.'
+              : defaultsCleared
+                ? 'All defaults cleared. Create your own quests below.'
+                : 'No quests in your registry. Generate one above.'
             }
+            {/* Auto-show manual quest creation when defaults were cleared */}
+            {!statusFilter && (defaultsCleared || panelMode === null) && quests.length === 0 && !loading && (
+              <div style={{ marginTop: 20, width: '100%' }}>
+                {panelMode !== 'manual' ? (
+                  <button
+                    onClick={() => setPanelMode('manual')}
+                    style={{
+                      background: '#ffd70018',
+                      border: '1px solid #ffd70066',
+                      color: '#ffd700',
+                      padding: '12px 28px',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      letterSpacing: '0.15em',
+                    }}
+                  >
+                    + CREATE MANUAL QUEST
+                  </button>
+                ) : null}
+              </div>
+            )}
           </div>
         )}
 

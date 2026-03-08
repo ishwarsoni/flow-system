@@ -132,6 +132,33 @@ async def generate_daily_quests(
         raise HTTPException(status_code=500, detail=f"Daily generation failed: {str(e)}")
 
 
+@router.delete("/clear-defaults", status_code=status.HTTP_200_OK)
+async def clear_default_quests(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Remove all auto-generated (non-manual) active quests for the current user.
+
+    This lets the player clear all system-generated daily quests so they can
+    create their own manual quests from scratch. Only removes PENDING and
+    IN_PROGRESS quests that are not manual.
+    """
+    deleted = (
+        db.query(Quest)
+        .filter(
+            Quest.user_id == current_user.id,
+            Quest.is_manual == False,
+            Quest.status.in_([QuestStatus.PENDING, QuestStatus.IN_PROGRESS]),
+        )
+        .delete(synchronize_session="fetch")
+    )
+    db.commit()
+    return {
+        "deleted_count": deleted,
+        "message": f"[ SYSTEM ] {deleted} default quest(s) cleared. Manual quest creation is now open.",
+    }
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  EXISTING ENDPOINTS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -311,6 +338,7 @@ async def create_quest(
 async def list_quests(
     quest_status: str = Query(None, alias="status"),
     quest_type: str = Query(None, alias="type"),
+    skip_auto_generate: bool = Query(False, alias="skip_auto_generate"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_user),
@@ -326,17 +354,19 @@ async def list_quests(
     cleanup_old_completed_quests(db, current_user.id)
 
     # ── Lazy daily generation: if no active quests created today, auto-generate ──
-    today_start = datetime.combine(date.today(), datetime.min.time())
-    todays_active = (
-        db.query(Quest)
-        .filter(
-            Quest.user_id == current_user.id,
-            Quest.status.in_([QuestStatus.PENDING, QuestStatus.IN_PROGRESS]),
-            Quest.created_at >= today_start,
+    # Skip if user explicitly cleared defaults (skip_auto_generate=true)
+    if not skip_auto_generate:
+        today_start = datetime.combine(date.today(), datetime.min.time())
+        todays_active = (
+            db.query(Quest)
+            .filter(
+                Quest.user_id == current_user.id,
+                Quest.status.in_([QuestStatus.PENDING, QuestStatus.IN_PROGRESS]),
+                Quest.created_at >= today_start,
+            )
+            .count()
         )
-        .count()
-    )
-    if todays_active == 0:
+        if todays_active == 0:
         try:
             daily = QuestGenerator.generate_daily_quests(db, current_user.id)
             if daily:

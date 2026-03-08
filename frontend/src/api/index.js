@@ -22,6 +22,7 @@ export const questsAPI = {
   fail: (questId) => client.post(`/quests/${questId}/fail`),
   delete: (questId) => client.delete(`/quests/${questId}`),
   submitMetrics: (questId, metrics) => client.post(`/quests/${questId}/submit-metrics`, { metrics }),
+  clearDefaults: () => client.delete('/quests/clear-defaults'),
 }
 
 export const analyticsAPI = {
